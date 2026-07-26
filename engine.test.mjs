@@ -50,6 +50,18 @@ test('删除：Plan Report -> Plan 套用到 Foo Bar = Foo', () => {
   const T = tokenize('Foo Bar', false);
   assert.equal(applyToTarget(O, E, T, { index: 1, total: 2, dirParts: [] }), 'Foo');
 });
+test('新增后缀：01 -> E01 套用到 02 = E02（中文前缀+数字递增）', () => {
+  const O = tokenize('01.mp4', false);
+  const E = tokenize('平屋慢生活.E01.mp4', true);
+  const T = tokenize('02.mp4', false);
+  assert.equal(applyToTarget(O, E, T, { index: 2, total: 2, dirParts: [] }), '平屋慢生活.E02.mp4');
+});
+test('新增前缀：01 -> 01E 套用到 02 = 02E', () => {
+  const O = tokenize('01', false);
+  const E = tokenize('01E', true);
+  const T = tokenize('02', false);
+  assert.equal(applyToTarget(O, E, T, { index: 2, total: 2, dirParts: [] }), '02E');
+});
 
 console.log('标签求值');
 test('<abc> 原样输出 abc', () => assert.equal(evaluateTag('abc', {}, rng0), 'abc'));

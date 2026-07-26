@@ -436,10 +436,12 @@ els.recursive.addEventListener('change', () => {
 els.sort.addEventListener('change', () => { resetTemplate(); render(); });
 els.order.addEventListener('change', () => { resetTemplate(); render(); });
 
+let renderTimeout;
 els.templateInput.addEventListener('input', () => {
   state.templateEdited = els.templateInput.value;
   state.dirty = true;
-  render();
+  clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(render, 120);
 });
 
 els.applyBtn.addEventListener('click', applyRenames);

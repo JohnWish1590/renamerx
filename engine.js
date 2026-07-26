@@ -46,20 +46,33 @@ export function tokenize(text, parseTags = false) {
 }
 
 // ---------------------------------------------------------------------------
-// 基于种类的 LCS 对齐（用于把目标文件令牌序列对齐到模板原始序列）
+// 令牌相似度：用于加权 LCS 对齐
+//   完全相同 -> 100；相互包含 -> 50；同类 -> 1；不同类 -> 0
 // ---------------------------------------------------------------------------
-function lcsAlignment(a, b, matchFn) {
+function tokenScore(a, b) {
+  if (a.kind !== b.kind) return 0;
+  if (a.text === b.text) return 100;
+  if (a.text.includes(b.text) || b.text.includes(a.text)) return 50;
+  return 1;
+}
+
+// ---------------------------------------------------------------------------
+// 基于加分的 LCS 对齐：在同类基础上，优先对齐完全相同或相互包含的令牌
+// ---------------------------------------------------------------------------
+function lcsAlignment(a, b, scoreFn = tokenScore) {
   const n = a.length, m = b.length;
   const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = matchFn(a[i], b[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      const s = scoreFn(a[i], b[j]);
+      dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1], dp[i + 1][j + 1] + s);
     }
   }
   const pairs = [];
   let i = 0, j = 0;
   while (i < n && j < m) {
-    if (matchFn(a[i], b[j])) { pairs.push([i, j]); i++; j++; }
+    const s = scoreFn(a[i], b[j]);
+    if (s > 0 && dp[i][j] === dp[i + 1][j + 1] + s) { pairs.push([i, j]); i++; j++; }
     else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
     else j++;
   }
@@ -148,6 +161,14 @@ function transformWord(etext, origText, targetText) {
   if (etext.length > 0 && etext.length < origText.length && origText.endsWith(etext)) {
     return targetText.slice(-etext.length);
   }
+  // 新增前缀：编辑词 = 原始词 + 后缀（如 01 -> 01E）
+  if (etext.length > origText.length && etext.startsWith(origText)) {
+    return targetText + etext.slice(origText.length);
+  }
+  // 新增后缀：编辑词 = 前缀 + 原始词（如 01 -> E01）
+  if (etext.length > origText.length && etext.endsWith(origText)) {
+    return etext.slice(0, etext.length - origText.length) + targetText;
+  }
   // 大小写变换
   if (etext.toLowerCase() === origText.toLowerCase()) {
     if (/[a-zA-Z]/.test(etext) && etext === etext.toUpperCase()) return targetText.toUpperCase();
@@ -162,40 +183,18 @@ function transformWord(etext, origText, targetText) {
 }
 
 // ---------------------------------------------------------------------------
-// O↔E 对齐：先用「文本完全相同」做锚点，再在间隙内做同类 LCS
-//   这样能正确区分「插入的新词」与「被改写的词」，避免把 "X Plan" 误判为 "Plan"→"X"
+// O↔E 对齐：使用加权 LCS，优先对齐完全相同或相互包含的令牌
+//   这样能正确区分「插入的新词」与「被改写的词」，同时识别 "01" -> "E01" 这类前缀/后缀新增
 // ---------------------------------------------------------------------------
 function alignTokens(a, b) {
-  const usedA = new Set(), usedB = new Set();
-  const anchors = [];
-  for (let i = 0; i < a.length; i++) {
-    if (usedA.has(i)) continue;
-    for (let j = 0; j < b.length; j++) {
-      if (usedB.has(j)) continue;
-      if (a[i].kind === b[j].kind && a[i].text === b[j].text) {
-        anchors.push([i, j]); usedA.add(i); usedB.add(j); break;
-      }
-    }
-  }
-  anchors.sort((x, y) => x[0] - y[0]);
-  const pairs = anchors.slice();
-  const aiEdges = [-1, ...anchors.map(a => a[0]), a.length];
-  const bjEdges = [-1, ...anchors.map(a => a[1]), b.length];
-  for (let s = 0; s < anchors.length + 1; s++) {
-    const ga = a.slice(aiEdges[s] + 1, aiEdges[s + 1]);
-    const gb = b.slice(bjEdges[s] + 1, bjEdges[s + 1]);
-    const sub = lcsAlignment(ga, gb, (x, y) => x.kind === y.kind);
-    for (const [si, sj] of sub) pairs.push([aiEdges[s] + 1 + si, bjEdges[s] + 1 + sj]);
-  }
-  pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
-  return pairs;
+  return lcsAlignment(a, b, tokenScore);
 }
 
 // ---------------------------------------------------------------------------
 // 把编辑模板套用到单个目标文件
 // ---------------------------------------------------------------------------
 export function applyToTarget(O, E, T, ctx, rng) {
-  const pairsOT = lcsAlignment(O, T, (x, y) => x.kind === y.kind);
+  const pairsOT = lcsAlignment(O, T, tokenScore);
   const mapOtoT = new Map();
   for (const [oi, ti] of pairsOT) mapOtoT.set(oi, ti);
 

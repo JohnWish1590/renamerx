@@ -3,6 +3,9 @@ import { computeRenames, resolveTargetPath } from './engine.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
 const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
+const MAX_PREVIEW = 500;       // 预览表格最多渲染行数，防止 DOM 过大导致 OOM
+const LARGE_FOLDER = 5000;     // 文件数超过此值时给出警告
+const MAX_DEPTH = 10;          // 递归收集最大深度，防止符号链接死循环
 
 const els = {
   pickBtn: document.getElementById('pickBtn'),
@@ -51,11 +54,15 @@ async function loadFromHandle(handle, recursive) {
   state.files = [];
   await collect(handle, [], recursive);
   resetTemplate();
-  setStatus(`已加载 ${state.files.length} 个文件。`, 'ok');
+  const warn = state.files.length > LARGE_FOLDER
+    ? `（⚠ 该文件夹包含 ${state.files.length} 个文件，数量过大，建议分批处理或只处理子文件夹）`
+    : '';
+  setStatus(`已加载 ${state.files.length} 个文件。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
   render();
 }
 
 async function collect(dirHandle, relParts, recursive) {
+  if (relParts.length >= MAX_DEPTH) return;
   for await (const entry of dirHandle.values()) {
     if (entry.kind === 'file') {
       let ctime = 0, mtime = 0, size = 0;
@@ -132,8 +139,11 @@ function render() {
   els.applyBtn.disabled = hasWarn;
   els.exportBtn.disabled = hasWarn;
 
+  // 预览表格只渲染前 MAX_PREVIEW 行，避免超大文件夹把 DOM 撑爆导致 OOM
+  const showCount = Math.min(res.length, MAX_PREVIEW);
   let html = '';
-  res.forEach((r, i) => {
+  for (let i = 0; i < showCount; i++) {
+    const r = res[i];
     const warnCls = r.warnings.length ? 'row-warn' : '';
     const warnTxt = r.warnings.map(w => `⚠ ${w}`).join('；');
     html += `<tr class="${warnCls}">
@@ -142,7 +152,12 @@ function render() {
       <td class="col-new">${escapeHtml(r.renamed)}</td>
       <td class="warn-cell">${escapeHtml(warnTxt)}</td>
     </tr>`;
-  });
+  }
+  if (res.length > MAX_PREVIEW) {
+    html += `<tr><td class="col-idx">…</td><td colspan="3" class="warn-cell">` +
+      `还有 ${res.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${res.length} 个），导出/应用时仍会处理全部文件。` +
+      `</td></tr>`;
+  }
   els.previewBody.innerHTML = html;
   state.lastResults = res;
 
@@ -160,6 +175,8 @@ function render() {
   if (hasWarn) {
     const n = res.filter(r => r.warnings.length).length;
     setStatus(`有 ${n} 个文件存在警告（冲突或非法字符），请修正模板后再应用。`, 'err');
+  } else if (res.length > MAX_PREVIEW) {
+    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${res.length} 个）。确认无误后点击「应用重命名」或「导出脚本」。`, 'ok');
   } else if (state.mode === 'compat') {
     setStatus('兼容模式预览完成。点击「导出重命名脚本」下载 PowerShell 脚本，手动运行即可完成改名。', 'ok');
   } else {
@@ -286,7 +303,10 @@ async function loadFromCompat(input) {
   }
   state.compatRoot = rootName || '选中的文件夹';
   resetTemplate();
-  setStatus(`兼容模式已加载 ${state.files.length} 个文件（来自「${state.compatRoot}」）。`, 'ok');
+  const warn = state.files.length > LARGE_FOLDER
+    ? `（⚠ 该文件夹包含 ${state.files.length} 个文件，数量过大，建议分批处理）`
+    : '';
+  setStatus(`兼容模式已加载 ${state.files.length} 个文件（来自「${state.compatRoot}」）。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
   render();
 }
 

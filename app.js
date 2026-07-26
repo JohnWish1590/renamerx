@@ -26,6 +26,7 @@ const els = {
   pickCompatBtn: document.getElementById('pickCompatBtn'),
   dirInput: document.getElementById('dirInput'),
   exportBtn: document.getElementById('exportBtn'),
+  tagPalette: document.getElementById('tagPalette'),
 };
 els.githubLink.href = GITHUB_URL;
 
@@ -388,6 +389,27 @@ els.templateInput.addEventListener('input', () => {
   state.dirty = true;
   clearTimeout(renderTimeout);
   renderTimeout = setTimeout(render, 120);
+});
+
+// 一键插入标签：把对应标签插到光标处，免去背语法
+function insertTag(tag) {
+  const inp = els.templateInput;
+  const start = inp.selectionStart == null ? inp.value.length : inp.selectionStart;
+  const end = inp.selectionEnd == null ? inp.value.length : inp.selectionEnd;
+  const v = inp.value;
+  inp.value = v.slice(0, start) + tag + v.slice(end);
+  const pos = start + tag.length;
+  try { inp.setSelectionRange(pos, pos); } catch (_) {}
+  inp.focus();
+  state.templateEdited = inp.value;
+  state.dirty = true;
+  clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(render, 120);
+}
+els.tagPalette.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tag]');
+  if (!btn) return;
+  insertTag(btn.getAttribute('data-tag'));
 });
 
 els.applyBtn.addEventListener('click', applyRenames);

@@ -53,6 +53,19 @@
     <label for="templateInput">重命名模板（修改其中一个文件名，改动会套用到全部文件）</label>
     <input id="templateInput" type="text" placeholder="例如：<dir>_<n> 或 Photo_<n>.jpg" autocomplete="off" />
     <p class="template-note" id="templateNote"></p>
+    <div class="tagpalette" id="tagPalette" aria-label="一键插入标签">
+      <span class="tagpalette-label">点一下插入标签：</span>
+      <button type="button" class="chip" data-tag="&lt;n&gt;">🔢 自动编号</button>
+      <button type="button" class="chip" data-tag="&lt;n,5&gt;">🔢 编号从5起</button>
+      <button type="button" class="chip" data-tag="&lt;dir&gt;">📁 文件夹名</button>
+      <button type="button" class="chip" data-tag="&lt;dir,2&gt;">📁 上级文件夹</button>
+      <button type="button" class="chip" data-tag="&lt;r,4&gt;">🎲 随机数字</button>
+      <button type="button" class="chip" data-tag="&lt;rl,4&gt;">🔡 随机小写</button>
+      <button type="button" class="chip" data-tag="&lt;ru,4&gt;">🔠 随机大写</button>
+      <button type="button" class="chip" data-tag="&lt;ra,4&gt;">🔣 小写+数字</button>
+      <button type="button" class="chip" data-tag="&lt;rA,4&gt;">🔣 大写+数字</button>
+      <button type="button" class="chip" data-tag="&lt;rABC,4&gt;">🎯 自定义字符</button>
+    </div>
   </section>
 
   <section class="preview">
@@ -76,7 +89,7 @@
   </section>
 
   <details id="help" class="help">
-    <summary>📖 标签语法与使用原理</summary>
+    <summary>📖 标签说明与使用原理（看不懂语法？点这里）</summary>
     <div class="help-body">
       <h3>核心原理</h3>
       <p>拖入一批结构相似的文件后，列表中<strong>排在第一位</strong>的文件名会成为「重命名模板」。
@@ -87,21 +100,24 @@
       </ul>
       <p class="warn">⚠️ 软件可能无法完全理解你的改名意图，重命名前请务必核对每个文件名！</p>
 
-      <h3>标签（可直接写进模板）</h3>
+      <h3>标签说明（可直接写进模板，不用背，上面有「一键插入」）</h3>
+      <p class="hint">标签就是「占位符」，软件会根据每个文件自动算出真正的内容。大白话解释如下：</p>
       <table class="tagtable">
-        <tr><td><code>&lt;n&gt;</code></td><td>自动编号，按文件总数自动补零（001、002…）</td></tr>
-        <tr><td><code>&lt;n,x&gt;</code></td><td>自动编号，从第 x 个开始</td></tr>
-        <tr><td><code>&lt;dir&gt;</code> / <code>&lt;dir,1&gt;</code></td><td>所在文件夹名</td></tr>
-        <tr><td><code>&lt;dir,x&gt;</code></td><td>向上 x 级的父文件夹名</td></tr>
-        <tr><td><code>&lt;r&gt;</code></td><td>6 位随机数字</td></tr>
-        <tr><td><code>&lt;r,x&gt;</code> / <code>&lt;rn,x&gt;</code></td><td>x 位随机数字</td></tr>
-        <tr><td><code>&lt;rl,x&gt;</code></td><td>x 位随机小写字母</td></tr>
-        <tr><td><code>&lt;ru,x&gt;</code></td><td>x 位随机大写字母</td></tr>
-        <tr><td><code>&lt;ra,x&gt;</code></td><td>x 位随机小写字母+数字</td></tr>
-        <tr><td><code>&lt;rA,x&gt;</code></td><td>x 位随机大写字母+数字</td></tr>
-        <tr><td><code>&lt;rABC,x&gt;</code></td><td>x 位自定义字符（ABC 可换成任意字符）</td></tr>
-        <tr><td><code>&lt;abc&gt;</code></td><td>原样输出文字 abc（用 &lt;&gt; 包裹可强制固定文本，不随各文件变化）</td></tr>
+        <tr><th>标签写法</th><th>大白话意思</th><th>举个栗子（3 个文件）</th></tr>
+        <tr><td><code>&lt;n&gt;</code></td><td><strong>自动编号</strong>，位数跟着文件总数走（1→001，12→012）</td><td>001、002、003</td></tr>
+        <tr><td><code>&lt;n,5&gt;</code></td><td>自动编号，<strong>从第 5 个开始</strong>数</td><td>005、006、007</td></tr>
+        <tr><td><code>&lt;dir&gt;</code></td><td>放进<strong>当前文件夹的名字</strong></td><td>文件夹叫「照片」就填「照片」</td></tr>
+        <tr><td><code>&lt;dir,2&gt;</code></td><td>向上数<strong>第 2 层父文件夹</strong>的名字</td><td>如 <code>D:\旅行\2024\照片</code> → 填「旅行」</td></tr>
+        <tr><td><code>&lt;r&gt;</code></td><td><strong>6 位随机数字</strong>（制造不重复的名字）</td><td>如 482913</td></tr>
+        <tr><td><code>&lt;r,4&gt;</code></td><td><strong>4 位随机数字</strong></td><td>如 0193</td></tr>
+        <tr><td><code>&lt;rl,4&gt;</code></td><td><strong>4 位随机小写字母</strong></td><td>如 akzp</td></tr>
+        <tr><td><code>&lt;ru,4&gt;</code></td><td><strong>4 位随机大写字母</strong></td><td>如 AKZP</td></tr>
+        <tr><td><code>&lt;ra,4&gt;</code></td><td><strong>4 位随机小写字母 + 数字</strong></td><td>如 a3k9</td></tr>
+        <tr><td><code>&lt;rA,4&gt;</code></td><td><strong>4 位随机大写字母 + 数字</strong></td><td>如 A3K9</td></tr>
+        <tr><td><code>&lt;rABC,4&gt;</code></td><td><strong>4 位「ABC」里的随机组合</strong>（ABC 可换成任意字符）</td><td>如 CBAABC</td></tr>
+        <tr><td><code>&lt;abc&gt;</code></td><td>原样输出「abc」三个字。<strong>基本用不到</strong>：模板里直接打字本来就是原文；只有要原样输出像 <code>&lt;n&gt;</code> 这种「长得像标签」的文字时才需要</td><td>输出 abc</td></tr>
       </table>
+      <p class="hint">小提示：模板里<strong>直接打字就是原文</strong>，比如写 <code>假期照片_&lt;n&gt;</code>，「假期照片_」会原样保留，只有 <code>&lt;n&gt;</code> 变成编号。</p>
 
       <h3>归档到子文件夹</h3>
       <p>在模板里用 <code>/</code> 或 <code>\</code> 新建下级目录，例如 <code>Photos/&lt;n&gt;</code> 会把文件移入 Photos 子目录；

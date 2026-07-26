@@ -14,6 +14,7 @@ class El {
   addEventListener(t, f) { (this._l[t] ||= []).push(f); }
   removeEventListener() {}
   click() {}
+  focus() {}
   appendChild() {}
   remove() {}
   _fire(t, e = {}) { (this._l[t] || []).forEach(f => f(e)); }
@@ -122,6 +123,14 @@ await test('file:// 下「选择文件夹」按钮应提示而非崩溃', async 
   assert.ok(elements['banner'].hidden === false, 'file:// 应显示横幅');
   assert.ok(/兼容模式|file/.test(elements['status'].textContent), '应提示使用兼容模式');
   location.protocol = 'https:';
+});
+
+await test('点「一键插入标签」把 <n> 插入模板输入框', async () => {
+  elements['templateInput'].value = '照片_';
+  const fakeEvent = { target: { closest: () => ({ getAttribute: () => '<n>' }) } };
+  elements['tagPalette']._fire('click', fakeEvent);
+  await sleep(10);
+  assert.ok(elements['templateInput'].value === '照片_<n>', '应插入为 照片_<n>，实际=' + elements['templateInput'].value);
 });
 
 console.log(`\n通过 ${passed} 项测试` + (process.exitCode ? '（存在失败）' : '，全部通过 ✅'));

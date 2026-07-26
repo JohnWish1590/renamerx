@@ -1,0 +1,12 @@
+{
+  "name": "renamerx",
+  "version": "1.0.0",
+  "description": "RenamerX — 开源批量重命名工具（SmanRenamer 的继任者）。模板式重命名 + 标签系统。",
+  "type": "module",
+  "scripts": {
+    "test": "node engine.test.mjs",
+    "serve": "node server.mjs"
+  },
+  "license": "MIT",
+  "keywords": ["rename", "batch-rename", "file-renamer", "files", "utility"]
+}

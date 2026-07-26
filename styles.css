@@ -145,3 +145,21 @@ tbody tr:hover { background: #f8fafc; }
 .tagtable td:first-child { white-space: nowrap; width: 130px; }
 
 .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 24px; }
+
+/* file:// 模式下的提示横幅 */
+.banner {
+  padding: 12px 22px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-bottom: 1px solid #fde68a;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.banner a { color: var(--primary); text-decoration: underline; }
+.banner code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+[hidden] { display: none !important; }

@@ -2,6 +2,7 @@
 import { computeRenames, resolveTargetPath } from './engine.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
+const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
 
 const els = {
   pickBtn: document.getElementById('pickBtn'),
@@ -17,23 +18,32 @@ const els = {
   previewBody: document.getElementById('previewBody'),
   status: document.getElementById('status'),
   githubLink: document.getElementById('githubLink'),
+  banner: document.getElementById('banner'),
+  pickCompatBtn: document.getElementById('pickCompatBtn'),
+  dirInput: document.getElementById('dirInput'),
+  exportBtn: document.getElementById('exportBtn'),
 };
 els.githubLink.href = GITHUB_URL;
 
 const state = {
   rootHandle: null,
+  mode: 'fsa',          // 'fsa' = File System Access（直接改名）；'compat' = 兼容模式（导出脚本）
+  compatRoot: '',       // 兼容模式选中的根文件夹名
   recursive: false,
   files: [],            // { handle, name, dirParts:[], ctime, mtime, size }
   templateOriginal: '',
   templateEdited: '',
   dirty: false,
   undoStack: [],
+  lastResults: [],      // 最近一次 computeRenames 的结果（供导出脚本使用）
 };
 
 // --------------------------------------------------------------------------
 // 加载文件夹
 // --------------------------------------------------------------------------
 async function loadFromHandle(handle, recursive) {
+  state.mode = 'fsa';
+  state.compatRoot = '';
   state.rootHandle = handle;
   state.recursive = recursive;
   state.undoStack = [];
@@ -105,6 +115,9 @@ function render() {
   if (!sorted.length) {
     els.previewBody.innerHTML = '';
     els.applyBtn.disabled = true;
+    els.applyBtn.hidden = false;
+    els.undoBtn.hidden = true;
+    els.exportBtn.hidden = true;
     return;
   }
 
@@ -117,6 +130,7 @@ function render() {
 
   const hasWarn = res.some(r => r.warnings.length);
   els.applyBtn.disabled = hasWarn;
+  els.exportBtn.disabled = hasWarn;
 
   let html = '';
   res.forEach((r, i) => {
@@ -130,10 +144,24 @@ function render() {
     </tr>`;
   });
   els.previewBody.innerHTML = html;
+  state.lastResults = res;
+
+  if (state.mode === 'compat') {
+    // 兼容模式：无法真实改名，只能导出脚本
+    els.applyBtn.hidden = true;
+    els.undoBtn.hidden = true;
+    els.exportBtn.hidden = false;
+  } else {
+    els.applyBtn.hidden = false;
+    els.undoBtn.hidden = state.undoStack.length === 0;
+    els.exportBtn.hidden = true;
+  }
 
   if (hasWarn) {
     const n = res.filter(r => r.warnings.length).length;
     setStatus(`有 ${n} 个文件存在警告（冲突或非法字符），请修正模板后再应用。`, 'err');
+  } else if (state.mode === 'compat') {
+    setStatus('兼容模式预览完成。点击「导出重命名脚本」下载 PowerShell 脚本，手动运行即可完成改名。', 'ok');
   } else {
     setStatus('预览已更新，确认无误后点击「应用重命名」。', 'ok');
   }
@@ -228,11 +256,149 @@ async function undo() {
 }
 
 // --------------------------------------------------------------------------
+// 兼容模式：用 <input webkitdirectory> 加载文件（file:// 或非安全上下文可用）
+//   浏览器无法在 file:// 下真实改名，但可预览并导出 PowerShell 重命名脚本
+// --------------------------------------------------------------------------
+async function loadFromCompat(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  state.mode = 'compat';
+  state.rootHandle = null;
+  state.recursive = true; // webkitdirectory 已含全部子文件夹
+  state.undoStack = [];
+  state.files = [];
+
+  let rootName = '';
+  for (const f of files) {
+    const rel = f.webkitRelativePath || f.name;
+    const parts = rel.split('/');
+    const leaf = parts.pop();
+    if (!rootName && parts.length) rootName = parts[0];
+    const dirParts = parts.slice(1); // 去掉根文件夹名，得到相对目录层级
+    state.files.push({
+      handle: null,
+      name: leaf,
+      dirParts,
+      ctime: 0,
+      mtime: f.lastModified || 0,
+      size: f.size || 0,
+    });
+  }
+  state.compatRoot = rootName || '选中的文件夹';
+  resetTemplate();
+  setStatus(`兼容模式已加载 ${state.files.length} 个文件（来自「${state.compatRoot}」）。`, 'ok');
+  render();
+}
+
+// --------------------------------------------------------------------------
+// 生成 PowerShell 重命名脚本（兼容模式导出）
+//   采用两阶段重命名：先全部移到唯一临时名，再临时名 -> 最终名，
+//   可安全处理循环改名（如 a->b, b->a）与归档到子目录。
+// --------------------------------------------------------------------------
+function buildPowerShellScript(results, rootName) {
+  const winPath = p => p.replace(/\//g, '\\');
+  const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
+
+  const lines = [];
+  lines.push('# ' + '='.repeat(58));
+  lines.push('# RenamerX 生成的批量重命名脚本');
+  lines.push('# 根文件夹（你选中的文件夹）：' + rootName);
+  lines.push('#');
+  lines.push('# 使用方法：');
+  lines.push('#   1. 打开 PowerShell');
+  lines.push('#   2. cd "你的根文件夹路径"');
+  lines.push('#   3. 运行：.\\renamerx-export.ps1');
+  lines.push('#');
+  lines.push('# ⚠ 脚本会真实移动 / 重命名你的文件，运行前请确认已备份！');
+  lines.push('# ' + '='.repeat(58));
+  lines.push('$ErrorActionPreference = \'Stop\'');
+  lines.push('');
+
+  const dirSet = new Set();
+  const moves = [];
+  results.forEach((r, i) => {
+    const { parent, base } = resolveTargetPath(r.file, r.renamed);
+    const srcRel = (r.file.dirParts || []).concat(r.file.name).join('/');
+    const targetDir = parent.join('/');
+    const newRel = (targetDir ? targetDir + '/' : '') + base;
+    const tmp = (targetDir ? targetDir + '/' : '') + '.renx_tmp_' + i + '_' + Math.random().toString(16).slice(2, 8);
+    if (targetDir) dirSet.add(targetDir);
+    moves.push({ srcRel, newRel, tmp });
+  });
+
+  if (dirSet.size) {
+    lines.push('# ---- 创建目标子目录 ----');
+    for (const d of [...dirSet].sort()) {
+      lines.push('New-Item -ItemType Directory -Force -Path ' + ps(winPath(d)) + ' | Out-Null');
+    }
+    lines.push('');
+  }
+
+  lines.push('# ---- 阶段一：全部先移到唯一临时名（避免循环冲突）----');
+  for (const m of moves) {
+    lines.push('Move-Item -LiteralPath ' + ps(winPath(m.srcRel)) + ' -Destination ' + ps(winPath(m.tmp)));
+  }
+  lines.push('');
+  lines.push('# ---- 阶段二：临时名 -> 最终名 ----');
+  for (const m of moves) {
+    lines.push('Move-Item -LiteralPath ' + ps(winPath(m.tmp)) + ' -Destination ' + ps(winPath(m.newRel)));
+  }
+  lines.push('');
+  lines.push('Write-Host "RenamerX：已完成 ' + results.length + ' 个文件的重命名。"');
+  return lines.join('\r\n');
+}
+
+function downloadScript() {
+  if (!state.lastResults.length) return;
+  const script = buildPowerShellScript(state.lastResults, state.compatRoot);
+  const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'renamerx-export.ps1';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus('已导出 renamerx-export.ps1，请在选中的根文件夹中用 PowerShell 运行。', 'ok');
+}
+
+// --------------------------------------------------------------------------
+// 横幅 & 全局拖拽拦截
+// --------------------------------------------------------------------------
+function showBanner(html) {
+  els.banner.innerHTML = html;
+  els.banner.hidden = false;
+}
+function hideBanner() { els.banner.hidden = true; }
+
+function maybeShowBanner() {
+  if (location.protocol === 'file:') {
+    showBanner(
+      '⚠️ <strong>你正在用「直接双击 HTML」的方式打开</strong>，浏览器出于安全限制：' +
+      '①「选择文件夹」按钮和拖拽<strong>无法读取</strong>本机文件；②也无法<strong>真实改名</strong>。' +
+      '请改用「<strong>兼容模式选择</strong>」加载文件预览并导出 PowerShell 脚本手动运行；' +
+      '或访问在线版 <a href="' + PAGES_URL + '" target="_blank" rel="noopener">RenamerX 网页版</a> 用 File System Access 直接改名。'
+    );
+  }
+}
+
+// 全局拦截文件拖拽，阻止浏览器把文件夹当作下载/打开
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+  window.addEventListener(ev, e => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+      e.preventDefault();
+    }
+  });
+});
+
+// --------------------------------------------------------------------------
 // 事件绑定
 // --------------------------------------------------------------------------
 els.pickBtn.addEventListener('click', async () => {
-  if (!window.showDirectoryPicker) {
-    setStatus('当前浏览器不支持文件夹选择，请使用 Chrome / Edge。', 'err');
+  if (!window.isSecureContext || !window.showDirectoryPicker) {
+    showBanner(); // 确保在 file:// 下给出提示
+    setStatus('当前为 file:// 模式，「选择文件夹」不可用。请点「兼容模式选择」，或访问在线网页版。', 'err');
     return;
   }
   try {
@@ -269,8 +435,13 @@ els.undoBtn.addEventListener('click', undo);
 els.dropzone.addEventListener('drop', async e => {
   const item = e.dataTransfer.items && e.dataTransfer.items[0];
   if (!item) return;
+  if (!window.isSecureContext || !item.getAsFileSystemHandle) {
+    showBanner();
+    setStatus('当前为 file:// 模式，拖拽无法读取文件夹。请点「兼容模式选择」。', 'err');
+    return;
+  }
   let handle = null;
-  if (item.getAsFileSystemHandle) handle = await item.getAsFileSystemHandle();
+  try { handle = await item.getAsFileSystemHandle(); } catch (_) {}
   if (handle && handle.kind === 'directory') {
     await loadFromHandle(handle, els.recursive.checked);
   } else {
@@ -278,4 +449,13 @@ els.dropzone.addEventListener('drop', async e => {
   }
 });
 
-setStatus('选择或拖入一个文件夹开始。');
+// 兼容模式：用 <input webkitdirectory> 加载文件
+els.pickCompatBtn.addEventListener('click', () => {
+  els.dirInput.value = ''; // 允许重复选择同一文件夹
+  els.dirInput.click();
+});
+els.dirInput.addEventListener('change', () => loadFromCompat(els.dirInput));
+els.exportBtn.addEventListener('click', downloadScript);
+
+maybeShowBanner();
+setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');

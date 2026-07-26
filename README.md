@@ -56,6 +56,19 @@ node server.mjs          # 然后打开 http://localhost:5173
 > 真实重命名需要浏览器支持 **File System Access API**（Chrome / Edge / 新版 Opera）。
 > 其它浏览器可正常预览，但无法写入本机文件。
 
+### 方式三：直接双击 HTML（兼容模式）
+如果直接双击 `index.html` 以 `file://` 方式打开，浏览器出于安全限制：
+**「选择文件夹」按钮和拖拽都无法读取本机文件，也无法真实改名**。此时请使用界面上的
+**「兼容模式选择」** 按钮（基于 `<input webkitdirectory>`）：
+
+1. 点「兼容模式选择」，选中要处理的文件夹；
+2. 像平时一样编辑模板、预览改名效果；
+3. 点 **「导出重命名脚本」** 下载 `renamerx-export.ps1`；
+4. 在 PowerShell 中 `cd` 到该文件夹，运行 `.\renamerx-export.ps1` 即可真实完成改名。
+
+> 导出的 PowerShell 脚本采用「两阶段重命名」：先全部移到唯一临时名、再临时名→最终名，
+> 可安全处理循环改名（如 a→b, b→a）与归档到子目录。运行前请确认已备份。
+
 ## 与 SmanRenamer 的功能对照
 
 | 能力 | SmanRenamer | RenamerX |

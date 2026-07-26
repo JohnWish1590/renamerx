@@ -21,8 +21,12 @@
     </nav>
   </header>
 
+  <div id="banner" class="banner" hidden></div>
+
   <section class="toolbar">
     <button id="pickBtn" class="btn primary">📁 选择文件夹</button>
+    <button id="pickCompatBtn" class="btn">📂 兼容模式选择</button>
+    <input type="file" id="dirInput" webkitdirectory multiple hidden />
     <label class="chk"><input type="checkbox" id="recursive" /> 包含子文件夹</label>
     <label class="sel">排序
       <select id="sort">
@@ -42,7 +46,7 @@
 
   <section id="dropzone" class="dropzone">
     <p>把<strong>文件夹</strong>拖到这里，或点击上方「选择文件夹」</p>
-    <p class="hint">需要 Chrome / Edge 等支持 File System Access 的浏览器，才能真实重命名本机文件。</p>
+    <p class="hint">Chrome / Edge 可直接重命名本机文件；双击打开 HTML 时请用「兼容模式选择」导出脚本。</p>
   </section>
 
   <section class="template">
@@ -56,6 +60,7 @@
       <span>预览（原文件名 → 新文件名）</span>
       <div class="actions">
         <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
+        <button id="exportBtn" class="btn" hidden>⬇️ 导出重命名脚本</button>
         <button id="undoBtn" class="btn" disabled>↩️ 撤销</button>
       </div>
     </div>

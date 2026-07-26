@@ -1,5 +1,6 @@
 // app.js — RenamerX 前端交互逻辑
 import { computeRenames, resolveTargetPath } from './engine.js';
+import { buildPowerShellScript } from './scriptgen.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
 const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
@@ -311,63 +312,8 @@ async function loadFromCompat(input) {
 }
 
 // --------------------------------------------------------------------------
-// 生成 PowerShell 重命名脚本（兼容模式导出）
-//   采用两阶段重命名：先全部移到唯一临时名，再临时名 -> 最终名，
-//   可安全处理循环改名（如 a->b, b->a）与归档到子目录。
+// 导出脚本（PowerShell 生成逻辑见 scriptgen.js，可直接单元测试）
 // --------------------------------------------------------------------------
-function buildPowerShellScript(results, rootName) {
-  const winPath = p => p.replace(/\//g, '\\');
-  const ps = s => "'" + String(s).replace(/'/g, "''") + "'";
-
-  const lines = [];
-  lines.push('# ' + '='.repeat(58));
-  lines.push('# RenamerX 生成的批量重命名脚本');
-  lines.push('# 根文件夹（你选中的文件夹）：' + rootName);
-  lines.push('#');
-  lines.push('# 使用方法：');
-  lines.push('#   1. 打开 PowerShell');
-  lines.push('#   2. cd "你的根文件夹路径"');
-  lines.push('#   3. 运行：.\\renamerx-export.ps1');
-  lines.push('#');
-  lines.push('# ⚠ 脚本会真实移动 / 重命名你的文件，运行前请确认已备份！');
-  lines.push('# ' + '='.repeat(58));
-  lines.push('$ErrorActionPreference = \'Stop\'');
-  lines.push('');
-
-  const dirSet = new Set();
-  const moves = [];
-  results.forEach((r, i) => {
-    const { parent, base } = resolveTargetPath(r.file, r.renamed);
-    const srcRel = (r.file.dirParts || []).concat(r.file.name).join('/');
-    const targetDir = parent.join('/');
-    const newRel = (targetDir ? targetDir + '/' : '') + base;
-    const tmp = (targetDir ? targetDir + '/' : '') + '.renx_tmp_' + i + '_' + Math.random().toString(16).slice(2, 8);
-    if (targetDir) dirSet.add(targetDir);
-    moves.push({ srcRel, newRel, tmp });
-  });
-
-  if (dirSet.size) {
-    lines.push('# ---- 创建目标子目录 ----');
-    for (const d of [...dirSet].sort()) {
-      lines.push('New-Item -ItemType Directory -Force -Path ' + ps(winPath(d)) + ' | Out-Null');
-    }
-    lines.push('');
-  }
-
-  lines.push('# ---- 阶段一：全部先移到唯一临时名（避免循环冲突）----');
-  for (const m of moves) {
-    lines.push('Move-Item -LiteralPath ' + ps(winPath(m.srcRel)) + ' -Destination ' + ps(winPath(m.tmp)));
-  }
-  lines.push('');
-  lines.push('# ---- 阶段二：临时名 -> 最终名 ----');
-  for (const m of moves) {
-    lines.push('Move-Item -LiteralPath ' + ps(winPath(m.tmp)) + ' -Destination ' + ps(winPath(m.newRel)));
-  }
-  lines.push('');
-  lines.push('Write-Host "RenamerX：已完成 ' + results.length + ' 个文件的重命名。"');
-  return lines.join('\r\n');
-}
-
 function downloadScript() {
   if (!state.lastResults.length) return;
   const script = buildPowerShellScript(state.lastResults, state.compatRoot);

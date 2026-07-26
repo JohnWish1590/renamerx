@@ -4,7 +4,7 @@
   "description": "RenamerX — 开源批量重命名工具（SmanRenamer 的继任者）。模板式重命名 + 标签系统。",
   "type": "module",
   "scripts": {
-    "test": "node engine.test.mjs",
+    "test": "node engine.test.mjs && node scriptgen.test.mjs && node app.test.mjs",
     "serve": "node server.mjs"
   },
   "license": "MIT",

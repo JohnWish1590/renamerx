@@ -134,6 +134,22 @@ test('Windows 非法字符检测', () => {
   const res = computeRenames({ files, templateOriginal: 'a.txt', templateEdited: 'a:b.txt', options: {}, rng: rng0 });
   assert.equal(res[0].warnings.some(w => w.includes('非法')), true);
 });
+test('单文件改名', () => {
+  const files = [{ name: 'old.mp4', dirParts: [] }];
+  const res = computeRenames({ files, templateOriginal: 'old.mp4', templateEdited: 'new.mp4', options: {}, rng: rng0 });
+  assert.deepEqual(res.map(r => r.renamed), ['new.mp4']);
+});
+test('标签 + 前缀/后缀组合：01 -> E01 套用到 02 = E02（前缀新增）', () => {
+  const O = tokenize('01', false);
+  const E = tokenize('E01', true);
+  const T = tokenize('02', false);
+  assert.equal(applyToTarget(O, E, T, { index: 2, total: 2, dirParts: [] }), 'E02');
+});
+test('深度归档：a/b/c -> Photos/<dir>/<n>', () => {
+  const files = [{ name: 'x.png', dirParts: ['a', 'b', 'c'] }];
+  const res = computeRenames({ files, templateOriginal: 'x.png', templateEdited: 'Photos/<dir>/<n>.png', options: {}, rng: rng0 });
+  assert.equal(res[0].renamed, 'Photos/c/1.png');
+});
 
 console.log('resolveTargetPath — 子目录归档 / 上移');
 test('无分隔符：仅改名', () => {

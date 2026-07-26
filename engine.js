@@ -47,12 +47,14 @@ export function tokenize(text, parseTags = false) {
 
 // ---------------------------------------------------------------------------
 // 令牌相似度：用于加权 LCS 对齐
-//   完全相同 -> 100；相互包含 -> 50；同类 -> 1；不同类 -> 0
+//   完全相同 -> 100；一方以另一方为前缀/后缀（新增前后缀）-> 50；同类 -> 1；不同类 -> 0
+//   注意：仅匹配前缀/后缀包含，避免中间包含误判（如 a ⊄ same 却得分导致错配）
 // ---------------------------------------------------------------------------
 function tokenScore(a, b) {
   if (a.kind !== b.kind) return 0;
   if (a.text === b.text) return 100;
-  if (a.text.includes(b.text) || b.text.includes(a.text)) return 50;
+  if (a.text.length > b.text.length && (a.text.startsWith(b.text) || a.text.endsWith(b.text))) return 50;
+  if (b.text.length > a.text.length && (b.text.startsWith(a.text) || b.text.endsWith(a.text))) return 50;
   return 1;
 }
 
@@ -161,13 +163,13 @@ function transformWord(etext, origText, targetText) {
   if (etext.length > 0 && etext.length < origText.length && origText.endsWith(etext)) {
     return targetText.slice(-etext.length);
   }
-  // 新增前缀：编辑词 = 原始词 + 后缀（如 01 -> 01E）
-  if (etext.length > origText.length && etext.startsWith(origText)) {
-    return targetText + etext.slice(origText.length);
-  }
   // 新增后缀：编辑词 = 前缀 + 原始词（如 01 -> E01）
   if (etext.length > origText.length && etext.endsWith(origText)) {
     return etext.slice(0, etext.length - origText.length) + targetText;
+  }
+  // 新增前缀：编辑词 = 原始词 + 后缀（如 01 -> 01E）
+  if (etext.length > origText.length && etext.startsWith(origText)) {
+    return targetText + etext.slice(origText.length);
   }
   // 大小写变换
   if (etext.toLowerCase() === origText.toLowerCase()) {

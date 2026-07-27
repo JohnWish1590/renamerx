@@ -195,6 +195,15 @@ function setStatus(msg, kind) {
   els.status.className = 'status' + (kind ? ' ' + kind : '');
 }
 
+// 改名完成后通知父页面（用于发布站的人气计数）。在 iframe 内才发送，直接打开时不打扰。
+function notifyRenamed(count) {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'renamerx:renamed', count: count }, '*');
+    }
+  } catch (_) { /* 跨域或被拦截时静默忽略 */ }
+}
+
 // --------------------------------------------------------------------------
 // 目标路径解析（支持 / 与 ../ 归档、上移）—— 实现见 engine.js 的 resolveTargetPath
 // --------------------------------------------------------------------------
@@ -248,6 +257,7 @@ async function applyRenames() {
     els.undoBtn.disabled = false;
     setStatus(`成功重命名 ${ok} 个文件。可点击「撤销」回退。`, 'ok');
   }
+  if (ok > 0) notifyRenamed(ok);
   render();
 }
 
@@ -328,6 +338,7 @@ function downloadScript() {
   a.remove();
   URL.revokeObjectURL(url);
   setStatus('已导出 renamerx-export.ps1，请在选中的根文件夹中用 PowerShell 运行。', 'ok');
+  if (state.lastResults.length) notifyRenamed(state.lastResults.length);
 }
 
 // --------------------------------------------------------------------------

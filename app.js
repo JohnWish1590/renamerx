@@ -1,5 +1,6 @@
 // app.js — RenamerX 前端交互逻辑
 import { computeRenames, resolveTargetPath } from './engine.js';
+import { GH_DISPATCH_TOKEN, GH_REPO } from './config.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
 const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
@@ -192,19 +193,57 @@ function setRenamedCountText(n) {
   const el = els.renamedCount || document.getElementById('renamed-count');
   if (el) el.textContent = fmtNum(n);
 }
-function loadRenamedCount() {
+
+// 真共享计数：count.json 存在仓库里，由 GitHub Action 累加。
+// 前端只读它（无需 token），并显示真实全网总数。
+const COUNT_RAW = `https://raw.githubusercontent.com/${GH_REPO}/main/count.json`;
+const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/dispatches`;
+let sharedCount = null;   // 最近一次读到的全网真实总数（null 表示还没读到）
+
+async function fetchSharedCount() {
   try {
-    const n = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
-    setRenamedCountText(n);
-  } catch (_) {}
+    const r = await fetch(COUNT_RAW, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j && typeof j.renamed === 'number') ? j.renamed : null;
+  } catch (_) { return null; }
 }
+
+async function loadRenamedCount() {
+  const shared = await fetchSharedCount();
+  if (shared !== null) {
+    sharedCount = shared;
+    setRenamedCountText(shared);
+  } else {
+    // 离线 / 网络失败兜底：显示本机累计
+    const local = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
+    setRenamedCountText(local);
+  }
+}
+
+// 改名成功后：本机即时乐观 +N 显示，同时触发 Action 让全网 +N
 function addRenamedCount(n) {
+  const local = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
+  localStorage.setItem(RENAMED_COUNT_KEY, String(local + n));
+  // 乐观更新：显示 全网已知总数 + 本次新增（下次刷新以 count.json 为准）
+  setRenamedCountText((sharedCount !== null ? sharedCount : local) + n);
+  triggerBump(n);
+}
+
+// 触发 GitHub Action 累加（需要 fine-grained 限定 token；未配置则不触发）
+async function triggerBump(n) {
+  if (!GH_DISPATCH_TOKEN) return;
   try {
-    const cur = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
-    const next = cur + n;
-    localStorage.setItem(RENAMED_COUNT_KEY, String(next));
-    setRenamedCountText(next);
-  } catch (_) {}
+    await fetch(DISPATCH_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + GH_DISPATCH_TOKEN,
+        'Content-Type': 'application/json',
+        Accept: 'application/vnd.github+json',
+      },
+      body: JSON.stringify({ event_type: 'bump', client_payload: { count: n } }),
+    });
+  } catch (_) { /* 触发失败不影响本机显示 */ }
 }
 
 // 不蒜子异步渲染，轮询格式化数字（页脚/统计条都可能出现，统一更新所有同名 id）

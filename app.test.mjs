@@ -48,6 +48,14 @@ globalThis.window = win;
 globalThis.location = location;
 globalThis.URL = URLmock;
 
+// fetch mock：返回仓库 count.json（测试不联网）
+globalThis.fetch = async (url) => {
+  if (typeof url === 'string' && url.includes('count.json')) {
+    return { ok: true, json: async () => ({ renamed: 0 }) };
+  }
+  return { ok: false, json: async () => ({}) };
+};
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let passed = 0;
 function test(name, fn) {

@@ -84,6 +84,7 @@
         </select>
       </label>
       <span id="count" class="count">未加载文件</span>
+      <button id="reselectBtn" class="btn" hidden>🔄 重新选择</button>
     </div>
     <p class="toolbar-note">💡 选择文件夹<b>只读取文件名</b>用于在浏览器里生成新名字，<b>不会上传任何文件</b>。</p>
 
@@ -136,9 +137,6 @@
     <div class="grid">
       <div class="card"><div class="ico">🧩</div><h3>模板批量改名</h3><p>第一个文件当作「改名模板」，你改一处，引擎按规律把同样的变换套用到所有文件。</p></div>
       <div class="card"><div class="ico">🔢</div><h3>标签自动编号</h3><p>用 <code class="mono">&lt;n&gt;</code> 自动按 001、002… 补零编号，也能指定起始数字、引用父文件夹名。</p></div>
-      <div class="card"><div class="ico">📁</div><h3>子文件夹归档</h3><p>模板里写 <code class="mono">Photos/&lt;n&gt;</code> 就能把文件自动分进子目录；<code class="mono">../</code> 可上移一级。</p></div>
-      <div class="card"><div class="ico">🚀</div><h3>真实改名</h3><p>Chrome / Edge 在线打开时，通过系统接口直接改你本地文件，无需下载安装。</p></div>
-      <div class="card"><div class="ico">🔒</div><h3>本地处理</h3><p>所有改名逻辑都在浏览器本地运行，文件从不上传服务器，断网也能用。</p></div>
       <div class="card"><div class="ico">🌐</div><h3>纯网页零依赖</h3><p>只有一个 HTML + 几个 JS 文件，断网也能用，可整页存到本地双击打开。</p></div>
     </div>
   </section>
@@ -195,7 +193,7 @@
   </div>
 </footer>
 
-<script async src="https://busuanzi.9420.ltd/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

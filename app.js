@@ -13,6 +13,7 @@ const els = {
   sort: document.getElementById('sort'),
   order: document.getElementById('order'),
   count: document.getElementById('count'),
+  reselectBtn: document.getElementById('reselectBtn'),
   dropzone: document.getElementById('dropzone'),
   templateInput: document.getElementById('templateInput'),
   templateNote: document.getElementById('templateNote'),
@@ -112,8 +113,9 @@ function render() {
   els.count.textContent = `${state.files.length} 个文件`;
   state.templateOriginal = sorted.length ? sorted[0].name : '';
 
-  // 文件加载后自动隐藏 dropzone，进入编辑态
+  // 文件加载后自动隐藏 dropzone，进入编辑态；显示「重新选择」按钮
   els.dropzone.hidden = sorted.length > 0;
+  els.reselectBtn.hidden = sorted.length === 0;
 
   if (!sorted.length) {
     els.previewBody.innerHTML = '';
@@ -316,7 +318,7 @@ function maybeShowBanner() {
 // --------------------------------------------------------------------------
 // 事件绑定
 // --------------------------------------------------------------------------
-els.pickBtn.addEventListener('click', async () => {
+async function pickFolder() {
   if (!window.isSecureContext || !window.showDirectoryPicker) {
     showBanner(); // 确保在 file:// 下给出提示
     setStatus('当前为 file:// 模式，「选择文件夹」不可用。请点「兼容模式选择」，或访问在线网页版。', 'err');
@@ -328,7 +330,9 @@ els.pickBtn.addEventListener('click', async () => {
   } catch (e) {
     if (e.name !== 'AbortError') setStatus(`选择失败：${e.message}`, 'err');
   }
-});
+}
+els.pickBtn.addEventListener('click', pickFolder);
+els.reselectBtn.addEventListener('click', pickFolder);
 
 els.recursive.addEventListener('change', () => {
   if (state.rootHandle) loadFromHandle(state.rootHandle, els.recursive.checked);

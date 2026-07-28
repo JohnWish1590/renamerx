@@ -14,6 +14,7 @@ const els = {
   order: document.getElementById('order'),
   count: document.getElementById('count'),
   reselectBtn: document.getElementById('reselectBtn'),
+  renamedCount: document.getElementById('renamed-count'),
   dropzone: document.getElementById('dropzone'),
   templateInput: document.getElementById('templateInput'),
   templateNote: document.getElementById('templateNote'),
@@ -110,7 +111,7 @@ function getSorted() {
 // --------------------------------------------------------------------------
 function render() {
   const sorted = getSorted();
-  els.count.textContent = `${state.files.length} 个文件`;
+  els.count.textContent = sorted.length ? `已选择 ${sorted.length} 个文件` : '未加载文件';
   state.templateOriginal = sorted.length ? sorted[0].name : '';
 
   // 文件加载后自动隐藏 dropzone，进入编辑态；显示「重新选择」按钮
@@ -182,6 +183,43 @@ function notifyRenamed(count) {
   } catch (_) { /* 跨域或被拦截时静默忽略 */ }
 }
 
+// 本机累计重命名文件数（无需账号，localStorage 持久化）
+const RENAMED_COUNT_KEY = 'renamerx_renamed_count';
+function fmtNum(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function loadRenamedCount() {
+  try {
+    const n = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
+    if (els.renamedCount) els.renamedCount.textContent = fmtNum(n);
+  } catch (_) {}
+}
+function addRenamedCount(n) {
+  try {
+    const cur = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
+    const next = cur + n;
+    localStorage.setItem(RENAMED_COUNT_KEY, String(next));
+    if (els.renamedCount) els.renamedCount.textContent = fmtNum(next);
+  } catch (_) {}
+}
+
+// 不蒜子异步渲染，轮询格式化数字
+function fmtBusuanzi() {
+  const el = document.getElementById('busuanzi_value_site_uv');
+  if (!el) return;
+  let seen = 0;
+  const timer = setInterval(() => {
+    const text = el.textContent || '';
+    const n = parseInt(text.replace(/,/g, '').replace(/—/g, ''), 10);
+    if (!isNaN(n) && n > 0 && n !== seen) {
+      seen = n;
+      el.textContent = fmtNum(n);
+      clearInterval(timer);
+    }
+  }, 300);
+  setTimeout(() => clearInterval(timer), 6000);
+}
+
 // --------------------------------------------------------------------------
 // 目标路径解析（支持 / 与 ../ 归档、上移）—— 实现见 engine.js 的 resolveTargetPath
 // --------------------------------------------------------------------------
@@ -240,6 +278,7 @@ async function applyRenames() {
     }
     if (ok > 0) {
       setStatus(`成功重命名 ${ok} 个文件。`, 'ok');
+      addRenamedCount(ok);
       notifyRenamed(ok);
     } else {
       setStatus('没有任何文件被重命名（可能目标名与原名相同，或 move 未生效）。', 'err');
@@ -331,8 +370,29 @@ async function pickFolder() {
     if (e.name !== 'AbortError') setStatus(`选择失败：${e.message}`, 'err');
   }
 }
+
+function resetTool() {
+  state.files = [];
+  state.rootHandle = null;
+  state.mode = 'fsa';
+  state.compatRoot = '';
+  state.templateOriginal = '';
+  state.templateEdited = '';
+  state.dirty = false;
+  els.templateInput.value = '';
+  updateTemplateNote();
+  els.previewBody.innerHTML = '';
+  els.applyBtn.disabled = true;
+  els.applyBtn.hidden = false;
+  els.dropzone.hidden = false;
+  els.reselectBtn.hidden = true;
+  els.count.textContent = '未加载文件';
+  hideBanner();
+  setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');
+}
+
 els.pickBtn.addEventListener('click', pickFolder);
-els.reselectBtn.addEventListener('click', pickFolder);
+els.reselectBtn.addEventListener('click', resetTool);
 
 els.recursive.addEventListener('change', () => {
   if (state.rootHandle) loadFromHandle(state.rootHandle, els.recursive.checked);
@@ -404,4 +464,6 @@ els.pickCompatBtn.addEventListener('click', () => {
 els.dirInput.addEventListener('change', () => loadFromCompat(els.dirInput));
 
 maybeShowBanner();
+loadRenamedCount();
+fmtBusuanzi();
 setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');

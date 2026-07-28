@@ -35,7 +35,7 @@
     <div class="badges">
       <span class="badge">🌐 纯网页 · 零依赖</span>
       <span class="badge">💾 可存本地双击打开</span>
-      <span class="badge">↩️ 真实改名 + 一键撤销</span>
+      <span class="badge">🚀 直接改名</span>
       <span class="badge">🔓 完全开源</span>
     </div>
 
@@ -89,7 +89,7 @@
 
     <section id="dropzone" class="dropzone">
       <p>把<strong>文件夹</strong>拖到这里，或点击上方「选择文件夹」</p>
-      <p class="hint">只会读取文件夹里的<b>文件名</b>，在本机浏览器中预览并生成新名字，<b>不会上传任何文件到网站/服务器</b>。<br>Chrome / Edge 可直接重命名本机文件；双击打开 HTML 时请用「兼容模式选择」导出脚本。</p>
+      <p class="hint">只会读取文件夹里的<b>文件名</b>，在本机浏览器中预览并生成新名字，<b>不会上传任何文件到网站/服务器</b>。<br>Chrome / Edge 在线打开可直接重命名本机文件。</p>
     </section>
 
     <section class="template">
@@ -116,14 +116,12 @@
         <span>预览（原文件名 → 新文件名）</span>
         <div class="actions">
           <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
-          <button id="exportBtn" class="btn" hidden>⬇️ 导出重命名脚本</button>
-          <button id="undoBtn" class="btn" disabled>↩️ 撤销</button>
         </div>
       </div>
       <div class="table-wrap">
         <table id="previewTable">
           <thead>
-            <tr><th>#</th><th>原文件名</th><th>新文件名</th><th>警告</th></tr>
+            <tr><th>#</th><th>原文件名</th><th>新文件名</th></tr>
           </thead>
           <tbody id="previewBody"></tbody>
         </table>
@@ -139,8 +137,8 @@
       <div class="card"><div class="ico">🧩</div><h3>模板批量改名</h3><p>第一个文件当作「改名模板」，你改一处，引擎按规律把同样的变换套用到所有文件。</p></div>
       <div class="card"><div class="ico">🔢</div><h3>标签自动编号</h3><p>用 <code class="mono">&lt;n&gt;</code> 自动按 001、002… 补零编号，也能指定起始数字、引用父文件夹名。</p></div>
       <div class="card"><div class="ico">📁</div><h3>子文件夹归档</h3><p>模板里写 <code class="mono">Photos/&lt;n&gt;</code> 就能把文件自动分进子目录；<code class="mono">../</code> 可上移一级。</p></div>
-      <div class="card"><div class="ico">↩️</div><h3>真实改名 + 撤销</h3><p>Chrome / Edge 通过系统接口直接改你本地文件，改完发现不对，一键撤销。</p></div>
-      <div class="card"><div class="ico">📜</div><h3>导出改名脚本</h3><p>不支持的浏览器（或 file:// 打开）可导出 PowerShell 脚本，双击即可批量改名。</p></div>
+      <div class="card"><div class="ico">🚀</div><h3>真实改名</h3><p>Chrome / Edge 在线打开时，通过系统接口直接改你本地文件，无需下载安装。</p></div>
+      <div class="card"><div class="ico">🔒</div><h3>本地处理</h3><p>所有改名逻辑都在浏览器本地运行，文件从不上传服务器，断网也能用。</p></div>
       <div class="card"><div class="ico">🌐</div><h3>纯网页零依赖</h3><p>只有一个 HTML + 几个 JS 文件，断网也能用，可整页存到本地双击打开。</p></div>
     </div>
   </section>
@@ -185,8 +183,8 @@
     <h2 class="sec">常见问题 <span class="en">FAQ</span></h2>
     <div class="faq-item"><h3>要下载或安装吗？</h3><p>不用。这是一个纯网页工具，打开就能用；也可以把整页存到本地双击打开。</p></div>
     <div class="faq-item"><h3>我的文件会被上传吗？</h3><p>不会。所有改名都在你自己的浏览器里完成，文件从不上传任何服务器。「选择文件夹」只会读取文件名来生成新名字。</p></div>
-    <div class="faq-item"><h3>为什么有的浏览器不能真实改名？</h3><p>直接在本地改名需要 Chrome / Edge 等支持的「文件系统接口」；Safari / Firefox 暂不支持，请改用「导出重命名脚本」用 PowerShell 执行。</p></div>
-    <div class="faq-item"><h3>双击打开 HTML 后拖不进去？</h3><p>以 <code>file://</code> 方式打开时浏览器禁止直接读取文件夹，请点「兼容模式选择」并改用「导出脚本」改名。</p></div>
+    <div class="faq-item"><h3>为什么有的浏览器不能真实改名？</h3><p>直接在本地改名需要 Chrome / Edge 等支持的「文件系统接口」；Safari / Firefox 暂不支持，建议访问在线版用 Chrome / Edge 操作。</p></div>
+    <div class="faq-item"><h3>双击打开 HTML 后拖不进去？</h3><p>以 <code>file://</code> 方式打开时浏览器禁止直接读取文件夹，建议访问在线版用 Chrome / Edge 操作。</p></div>
   </section>
 </main>
 

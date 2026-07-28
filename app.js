@@ -1,6 +1,5 @@
 // app.js — RenamerX 前端交互逻辑
 import { computeRenames, resolveTargetPath } from './engine.js';
-import { buildPowerShellScript } from './scriptgen.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
 const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
@@ -18,13 +17,11 @@ const els = {
   templateInput: document.getElementById('templateInput'),
   templateNote: document.getElementById('templateNote'),
   applyBtn: document.getElementById('applyBtn'),
-  undoBtn: document.getElementById('undoBtn'),
   previewBody: document.getElementById('previewBody'),
   status: document.getElementById('status'),
   banner: document.getElementById('banner'),
   pickCompatBtn: document.getElementById('pickCompatBtn'),
   dirInput: document.getElementById('dirInput'),
-  exportBtn: document.getElementById('exportBtn'),
   tagPalette: document.getElementById('tagPalette'),
 };
 
@@ -37,8 +34,6 @@ const state = {
   templateOriginal: '',
   templateEdited: '',
   dirty: false,
-  undoStack: [],
-  lastResults: [],      // 最近一次 computeRenames 的结果（供导出脚本使用）
 };
 
 // --------------------------------------------------------------------------
@@ -49,8 +44,6 @@ async function loadFromHandle(handle, recursive) {
   state.compatRoot = '';
   state.rootHandle = handle;
   state.recursive = recursive;
-  state.undoStack = [];
-  els.undoBtn.disabled = true;
   state.files = [];
   await collect(handle, [], recursive);
   resetTemplate();
@@ -119,12 +112,12 @@ function render() {
   els.count.textContent = `${state.files.length} 个文件`;
   state.templateOriginal = sorted.length ? sorted[0].name : '';
 
+  // 文件加载后自动隐藏 dropzone，进入编辑态
+  els.dropzone.hidden = sorted.length > 0;
+
   if (!sorted.length) {
     els.previewBody.innerHTML = '';
     els.applyBtn.disabled = true;
-    els.applyBtn.hidden = false;
-    els.undoBtn.hidden = true;
-    els.exportBtn.hidden = true;
     return;
   }
 
@@ -136,49 +129,34 @@ function render() {
   });
 
   const hasWarn = res.some(r => r.warnings.length);
-  els.applyBtn.disabled = hasWarn;
-  els.exportBtn.disabled = hasWarn;
+  els.applyBtn.disabled = hasWarn || state.mode === 'compat';
+  els.applyBtn.hidden = state.mode === 'compat';
 
   // 预览表格只渲染前 MAX_PREVIEW 行，避免超大文件夹把 DOM 撑爆导致 OOM
   const showCount = Math.min(res.length, MAX_PREVIEW);
   let html = '';
   for (let i = 0; i < showCount; i++) {
     const r = res[i];
-    const warnCls = r.warnings.length ? 'row-warn' : '';
-    const warnTxt = r.warnings.map(w => `⚠ ${w}`).join('；');
-    html += `<tr class="${warnCls}">
+    html += `<tr>
       <td class="col-idx">${i + 1}</td>
       <td class="col-old">${escapeHtml(r.original)}</td>
       <td class="col-new">${escapeHtml(r.renamed)}</td>
-      <td class="warn-cell">${escapeHtml(warnTxt)}</td>
     </tr>`;
   }
   if (res.length > MAX_PREVIEW) {
-    html += `<tr><td class="col-idx">…</td><td colspan="3" class="warn-cell">` +
-      `还有 ${res.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${res.length} 个），导出/应用时仍会处理全部文件。` +
+    html += `<tr><td class="col-idx">…</td><td colspan="2" class="warn-cell">` +
+      `还有 ${res.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${res.length} 个），应用时仍会处理全部文件。` +
       `</td></tr>`;
   }
   els.previewBody.innerHTML = html;
-  state.lastResults = res;
-
-  if (state.mode === 'compat') {
-    // 兼容模式：无法真实改名，只能导出脚本
-    els.applyBtn.hidden = true;
-    els.undoBtn.hidden = true;
-    els.exportBtn.hidden = false;
-  } else {
-    els.applyBtn.hidden = false;
-    els.undoBtn.hidden = state.undoStack.length === 0;
-    els.exportBtn.hidden = true;
-  }
 
   if (hasWarn) {
     const n = res.filter(r => r.warnings.length).length;
     setStatus(`有 ${n} 个文件存在警告（冲突或非法字符），请修正模板后再应用。`, 'err');
   } else if (res.length > MAX_PREVIEW) {
-    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${res.length} 个）。确认无误后点击「应用重命名」或「导出脚本」。`, 'ok');
+    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${res.length} 个）。确认无误后点击「应用重命名」。`, 'ok');
   } else if (state.mode === 'compat') {
-    setStatus('兼容模式预览完成。点击「导出重命名脚本」下载 PowerShell 脚本，手动运行即可完成改名。', 'ok');
+    setStatus('兼容模式仅可预览，真实改名请用 Chrome / Edge 在线打开本页。', 'ok');
   } else {
     setStatus('预览已更新，确认无误后点击「应用重命名」。', 'ok');
   }
@@ -242,7 +220,6 @@ async function applyRenames() {
       return;
     }
 
-    const undoList = [];
     let ok = 0;
     for (let i = 0; i < res.length; i++) {
       const r = res[i];
@@ -251,7 +228,6 @@ async function applyRenames() {
         const { parent, base } = resolveTargetPath(f, r.renamed);
         const parentHandle = await resolveParent(state.rootHandle, parent);
         await f.handle.move(parentHandle, base);
-        undoList.push({ handle: f.handle, origName: f.name, origDirParts: f.dirParts.slice() });
         f.name = base;
         f.dirParts = parent;
         ok++;
@@ -260,41 +236,16 @@ async function applyRenames() {
         break;
       }
     }
-    if (undoList.length) {
-      state.undoStack.push(undoList);
-      els.undoBtn.disabled = false;
-      setStatus(`成功重命名 ${ok} 个文件。可点击「撤销」回退。`, 'ok');
+    if (ok > 0) {
+      setStatus(`成功重命名 ${ok} 个文件。`, 'ok');
+      notifyRenamed(ok);
     } else {
       setStatus('没有任何文件被重命名（可能目标名与原名相同，或 move 未生效）。', 'err');
     }
-    if (ok > 0) notifyRenamed(ok);
     render();
   } catch (e) {
     setStatus(`应用重命名时发生异常：${e && e.message ? e.message : e}`, 'err');
   }
-}
-
-async function undo() {
-  const undoList = state.undoStack.pop();
-  if (!undoList) return;
-  let ok = 0;
-  for (const u of undoList) {
-    try {
-      const parentHandle = await resolveParent(state.rootHandle, u.origDirParts);
-      await u.handle.move(parentHandle, u.origName);
-      ok++;
-    } catch (e) {
-      setStatus(`撤销失败：${e.message}`, 'err');
-    }
-  }
-  els.undoBtn.disabled = state.undoStack.length === 0;
-  // 重新读取文件状态
-  const recursive = state.recursive;
-  const root = state.rootHandle;
-  state.files = [];
-  await collect(root, [], recursive);
-  render();
-  setStatus(`已撤销 ${ok} 个文件的重命名。`, 'ok');
 }
 
 // --------------------------------------------------------------------------
@@ -307,7 +258,6 @@ async function loadFromCompat(input) {
   state.mode = 'compat';
   state.rootHandle = null;
   state.recursive = true; // webkitdirectory 已含全部子文件夹
-  state.undoStack = [];
   state.files = [];
 
   let rootName = '';
@@ -336,25 +286,6 @@ async function loadFromCompat(input) {
 }
 
 // --------------------------------------------------------------------------
-// 导出脚本（PowerShell 生成逻辑见 scriptgen.js，可直接单元测试）
-// --------------------------------------------------------------------------
-function downloadScript() {
-  if (!state.lastResults.length) return;
-  const script = buildPowerShellScript(state.lastResults, state.compatRoot);
-  const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'renamerx-export.ps1';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  setStatus('已导出 renamerx-export.ps1，请在选中的根文件夹中用 PowerShell 运行。', 'ok');
-  if (state.lastResults.length) notifyRenamed(state.lastResults.length);
-}
-
-// --------------------------------------------------------------------------
 // 横幅 & 全局拖拽拦截
 // --------------------------------------------------------------------------
 function showBanner(html) {
@@ -368,8 +299,7 @@ function maybeShowBanner() {
     showBanner(
       '⚠️ <strong>你正在用「直接双击 HTML」的方式打开</strong>，浏览器出于安全限制：' +
       '①「选择文件夹」按钮和拖拽<strong>无法读取</strong>本机文件；②也无法<strong>真实改名</strong>。' +
-      '请改用「<strong>兼容模式选择</strong>」加载文件预览并导出 PowerShell 脚本手动运行；' +
-      '或访问在线版 <a href="' + PAGES_URL + '" target="_blank" rel="noopener">RenamerX 网页版</a> 用 File System Access 直接改名。'
+      '请访问在线版 <a href="' + PAGES_URL + '" target="_blank" rel="noopener">RenamerX 网页版</a> 用 Chrome / Edge 直接改名。'
     );
   }
 }
@@ -437,7 +367,6 @@ els.tagPalette.addEventListener('click', e => {
 });
 
 els.applyBtn.addEventListener('click', applyRenames);
-els.undoBtn.addEventListener('click', undo);
 
 // 拖拽文件夹
 ['dragenter', 'dragover'].forEach(ev => els.dropzone.addEventListener(ev, e => {
@@ -469,7 +398,6 @@ els.pickCompatBtn.addEventListener('click', () => {
   els.dirInput.click();
 });
 els.dirInput.addEventListener('change', () => loadFromCompat(els.dirInput));
-els.exportBtn.addEventListener('click', downloadScript);
 
 maybeShowBanner();
 setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');

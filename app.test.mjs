@@ -1,5 +1,5 @@
 // app.test.mjs — 用最小 DOM 模拟把真实 app.js 端到端跑起来（node app.test.mjs）
-// 覆盖：兼容模式加载 + 预览、导出脚本、File System Access 真实改名 + 撤销
+// 覆盖：兼容模式加载 + 预览、File System Access 真实改名
 import assert from 'node:assert/strict';
 
 // ---------------------------------------------------------------------------
@@ -70,20 +70,10 @@ await test('兼容模式加载 + 预览 E01..E07', async () => {
   await sleep(200);
   const html = elements['previewBody'].innerHTML;
   assert.ok(html.includes('平屋慢生活.E07.mp4'), '预览应包含 E07');
-  assert.ok(elements['exportBtn'].hidden === false, '兼容模式应显示导出按钮');
   assert.ok(elements['applyBtn'].hidden === true, '兼容模式应隐藏直接改名按钮');
 });
 
-await test('导出脚本内容正确（含 UTF-8 BOM）', async () => {
-  elements['exportBtn']._fire('click');       // downloadScript
-  const buf = new Uint8Array(await lastBlob.arrayBuffer());
-  // Blob.text() 会按规范去掉 BOM，故直接校验原始字节 [EF BB BF]
-  assert.equal(buf[0], 0xEF, 'BOM 字节1'); assert.equal(buf[1], 0xBB, 'BOM 字节2'); assert.equal(buf[2], 0xBF, 'BOM 字节3');
-  const txt = Buffer.from(buf).toString('utf8');
-  assert.ok(txt.includes("' -Destination '平屋慢生活.E07.mp4'"), '脚本含 E07 改名');
-});
-
-await test('File System Access：真实改名 + 撤销', async () => {
+await test('File System Access：真实改名', async () => {
   // 准备一个 fake 文件夹（3 个文件，支持 move / getDirectoryHandle）
   const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} });
   const entries = [mkFile('01.dat'), mkFile('02.dat'), mkFile('03.dat')];
@@ -106,12 +96,6 @@ await test('File System Access：真实改名 + 撤销', async () => {
   await sleep(50);
   const afterHtml = elements['previewBody'].innerHTML;
   assert.ok(afterHtml.includes('系列.1.dat') && afterHtml.includes('系列.3.dat'), '应用后预览应为新名');
-  assert.ok(elements['undoBtn'].disabled === false, '应用后应可撤销');
-
-  elements['undoBtn']._fire('click');         // undo
-  await sleep(50);
-  const undoHtml = elements['previewBody'].innerHTML;
-  assert.ok(undoHtml.includes('01.dat') && undoHtml.includes('03.dat'), '撤销后预览应恢复原文件名');
 });
 
 await test('file:// 下「选择文件夹」按钮应提示而非崩溃', async () => {

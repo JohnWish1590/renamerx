@@ -217,56 +217,63 @@ async function resolveParent(rootHandle, parts) {
 // 应用重命名
 // --------------------------------------------------------------------------
 async function applyRenames() {
-  if (state.mode === 'compat' || !state.rootHandle) {
-    setStatus('当前无法真实改名。兼容模式或 file:// 打开时，请使用「导出重命名脚本」手动执行。', 'err');
-    return;
-  }
-  setStatus('正在应用重命名…', 'ok');
-  const sorted = getSorted();
-  if (!sorted.length) {
-    setStatus('没有需要重命名的文件。', 'err');
-    return;
-  }
-  const res = computeRenames({
-    files: sorted,
-    templateOriginal: state.templateOriginal,
-    templateEdited: state.templateEdited,
-    options: { sort: els.sort.value, order: els.order.value },
-  });
-  if (res.some(r => r.warnings.length)) {
-    setStatus('存在冲突或非法字符，已阻止重命名。', 'err');
-    return;
-  }
-  if (!('move' in (sorted[0]?.handle || {}))) {
-    setStatus('当前浏览器不支持真实重命名（需要 Chrome / Edge）。', 'err');
-    return;
-  }
-
-  const undoList = [];
-  let ok = 0;
-  for (let i = 0; i < res.length; i++) {
-    const r = res[i];
-    const f = sorted[i];
-    try {
-      const { parent, base } = resolveTargetPath(f, r.renamed);
-      const parentHandle = await resolveParent(state.rootHandle, parent);
-      await f.handle.move(parentHandle, base);
-      undoList.push({ handle: f.handle, origName: f.name, origDirParts: f.dirParts.slice() });
-      f.name = base;
-      f.dirParts = parent;
-      ok++;
-    } catch (e) {
-      setStatus(`重命名失败：${e.message}`, 'err');
-      break;
+  // 包裹全局 try-catch：任何意外异常都逼到状态栏，避免「点了没反应又无提示」
+  try {
+    if (state.mode === 'compat' || !state.rootHandle) {
+      setStatus('当前无法真实改名。兼容模式或 file:// 打开时，请使用「导出重命名脚本」手动执行。', 'err');
+      return;
     }
+    setStatus(`正在应用重命名…（已加载 ${state.files.length} 个文件，rootHandle=${!!state.rootHandle}）`, 'ok');
+    const sorted = getSorted();
+    if (!sorted.length) {
+      setStatus('没有需要重命名的文件。', 'err');
+      return;
+    }
+    const res = computeRenames({
+      files: sorted,
+      templateOriginal: state.templateOriginal,
+      templateEdited: state.templateEdited,
+      options: { sort: els.sort.value, order: els.order.value },
+    });
+    if (res.some(r => r.warnings.length)) {
+      setStatus('存在冲突或非法字符，已阻止重命名。', 'err');
+      return;
+    }
+    if (!('move' in (sorted[0]?.handle || {}))) {
+      setStatus('当前浏览器不支持真实重命名（需要 Chrome / Edge 新版）。', 'err');
+      return;
+    }
+
+    const undoList = [];
+    let ok = 0;
+    for (let i = 0; i < res.length; i++) {
+      const r = res[i];
+      const f = sorted[i];
+      try {
+        const { parent, base } = resolveTargetPath(f, r.renamed);
+        const parentHandle = await resolveParent(state.rootHandle, parent);
+        await f.handle.move(parentHandle, base);
+        undoList.push({ handle: f.handle, origName: f.name, origDirParts: f.dirParts.slice() });
+        f.name = base;
+        f.dirParts = parent;
+        ok++;
+      } catch (e) {
+        setStatus(`重命名失败：${e && e.message ? e.message : e}`, 'err');
+        break;
+      }
+    }
+    if (undoList.length) {
+      state.undoStack.push(undoList);
+      els.undoBtn.disabled = false;
+      setStatus(`成功重命名 ${ok} 个文件。可点击「撤销」回退。`, 'ok');
+    } else {
+      setStatus('没有任何文件被重命名（可能目标名与原名相同，或 move 未生效）。', 'err');
+    }
+    if (ok > 0) notifyRenamed(ok);
+    render();
+  } catch (e) {
+    setStatus(`应用重命名时发生异常：${e && e.message ? e.message : e}`, 'err');
   }
-  if (undoList.length) {
-    state.undoStack.push(undoList);
-    els.undoBtn.disabled = false;
-    setStatus(`成功重命名 ${ok} 个文件。可点击「撤销」回退。`, 'ok');
-  }
-  if (ok > 0) notifyRenamed(ok);
-  render();
 }
 
 async function undo() {

@@ -1,4 +1,4 @@
 {
-  "renamed": 0,
+  "renamed": 1,
   "note": "由 GitHub Actions 在每次改名成功后自动累加。前端通过 workflow_dispatch 触发，Action 用 GITHUB_TOKEN 写回。"
 }

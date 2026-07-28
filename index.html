@@ -3,132 +3,201 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RenamerX · 开源批量重命名工具</title>
+  <title>RenamerX · 纯网页批量重命名工具</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">🏷️</div>
-      <div>
-        <h1>RenamerX</h1>
-        <p class="tagline">开源批量重命名工具 · SmanRenamer 的开源继任者</p>
-      </div>
-    </div>
-    <nav class="links">
-      <a id="githubLink" href="#" target="_blank" rel="noopener">GitHub</a>
-      <a href="#help">使用帮助</a>
-    </nav>
-  </header>
 
+<nav class="nav">
+  <div class="wrap nav-in">
+    <div class="brand"><span class="dot"></span>RenamerX</div>
+    <div class="nav-links">
+      <a class="lnk" href="#tool">工具</a>
+      <a class="lnk" href="#features">功能</a>
+      <a class="lnk" href="#how">原理</a>
+      <a class="lnk" href="#tags">标签</a>
+      <a class="lnk" href="#faq">问答</a>
+      <a class="btn btn-primary" href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>RenamerX · <span class="hl">纯网页</span>批量重命名工具</h1>
+    <p class="lead">打开网页就能用，<b>不用下载，不用安装</b>。拖入文件，改一个名字，剩下的自动套用。<br>
+      <span class="en">A batch file renamer that lives in your browser. No download, no install. Drop your files, edit one name, the rest follow.</span>
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#tool">⚡ 立即使用（免下载）</a>
+      <a class="btn btn-ghost" href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">在 GitHub 查看源码</a>
+    </div>
+    <div class="badges">
+      <span class="badge">🌐 纯网页 · 零依赖</span>
+      <span class="badge">💾 可存本地双击打开</span>
+      <span class="badge">↩️ 真实改名 + 一键撤销</span>
+      <span class="badge">🔓 完全开源</span>
+    </div>
+
+    <div class="mock">
+      <div class="mock-bar"><i class="r"></i><i class="y"></i><i class="g"></i><span>改第一个文件名，其余自动套用</span></div>
+      <div class="mock-body">
+        <div class="mock-col old">
+          <div class="row">01.mp4</div>
+          <div class="row">02.mp4</div>
+          <div class="row">03.mp4</div>
+          <div class="row">04.mp4</div>
+        </div>
+        <div class="mock-arrow">→</div>
+        <div class="mock-col new">
+          <div class="row">平屋慢生活.E01.mp4</div>
+          <div class="row">平屋慢生活.E02.mp4</div>
+          <div class="row">平屋慢生活.E03.mp4</div>
+          <div class="row">平屋慢生活.E04.mp4</div>
+        </div>
+      </div>
+      <div class="mock-cap">只需把 <b>01.mp4</b> 改成 <b>平屋慢生活.E01.mp4</b>，引擎自动识别规律并套用到全部文件。</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="tool">
   <div id="banner" class="banner" hidden></div>
 
-  <section class="toolbar">
-    <button id="pickBtn" class="btn primary">📁 选择文件夹</button>
-    <button id="pickCompatBtn" class="btn">📂 兼容模式选择</button>
-    <input type="file" id="dirInput" webkitdirectory multiple hidden />
-    <label class="chk"><input type="checkbox" id="recursive" /> 包含子文件夹</label>
-    <label class="sel">排序
-      <select id="sort">
-        <option value="name">名称</option>
-        <option value="mtime">修改时间</option>
-        <option value="size">文件大小</option>
-      </select>
-    </label>
-    <label class="sel">顺序
-      <select id="order">
-        <option value="asc">升序</option>
-        <option value="desc">降序</option>
-      </select>
-    </label>
-    <span id="count" class="count">未加载文件</span>
-  </section>
-
-  <section id="dropzone" class="dropzone">
-    <p>把<strong>文件夹</strong>拖到这里，或点击上方「选择文件夹」</p>
-    <p class="hint">Chrome / Edge 可直接重命名本机文件；双击打开 HTML 时请用「兼容模式选择」导出脚本。</p>
-  </section>
-
-  <section class="template">
-    <label for="templateInput">重命名模板（修改其中一个文件名，改动会套用到全部文件）</label>
-    <input id="templateInput" type="text" placeholder="例如：<dir>_<n> 或 Photo_<n>.jpg" autocomplete="off" />
-    <p class="template-note" id="templateNote"></p>
-    <div class="tagpalette" id="tagPalette" aria-label="一键插入标签">
-      <span class="tagpalette-label">点一下插入标签：</span>
-      <button type="button" class="chip" data-tag="&lt;n&gt;">🔢 自动编号</button>
-      <button type="button" class="chip" data-tag="&lt;n,5&gt;">🔢 编号从5起</button>
-      <button type="button" class="chip" data-tag="&lt;dir&gt;">📁 文件夹名</button>
-      <button type="button" class="chip" data-tag="&lt;dir,2&gt;">📁 上级文件夹</button>
-      <button type="button" class="chip" data-tag="&lt;r,4&gt;">🎲 随机数字</button>
-      <button type="button" class="chip" data-tag="&lt;rl,4&gt;">🔡 随机小写</button>
-      <button type="button" class="chip" data-tag="&lt;ru,4&gt;">🔠 随机大写</button>
-      <button type="button" class="chip" data-tag="&lt;ra,4&gt;">🔣 小写+数字</button>
-      <button type="button" class="chip" data-tag="&lt;rA,4&gt;">🔣 大写+数字</button>
-      <button type="button" class="chip" data-tag="&lt;rABC,4&gt;">🎯 自定义字符</button>
+  <section class="tool-card">
+    <div class="toolbar">
+      <button id="pickBtn" class="btn primary">📁 选择文件夹</button>
+      <button id="pickCompatBtn" class="btn">📂 兼容模式选择</button>
+      <input type="file" id="dirInput" webkitdirectory multiple hidden />
+      <label class="chk"><input type="checkbox" id="recursive" /> 包含子文件夹</label>
+      <label class="sel">排序
+        <select id="sort">
+          <option value="name">名称</option>
+          <option value="mtime">修改时间</option>
+          <option value="size">文件大小</option>
+        </select>
+      </label>
+      <label class="sel">顺序
+        <select id="order">
+          <option value="asc">升序</option>
+          <option value="desc">降序</option>
+        </select>
+      </label>
+      <span id="count" class="count">未加载文件</span>
     </div>
-  </section>
+    <p class="toolbar-note">💡 选择文件夹<b>只读取文件名</b>用于在浏览器里生成新名字，<b>不会上传任何文件</b>。</p>
 
-  <section class="preview">
-    <div class="preview-head">
-      <span>预览（原文件名 → 新文件名）</span>
-      <div class="actions">
-        <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
-        <button id="exportBtn" class="btn" hidden>⬇️ 导出重命名脚本</button>
-        <button id="undoBtn" class="btn" disabled>↩️ 撤销</button>
+    <section id="dropzone" class="dropzone">
+      <p>把<strong>文件夹</strong>拖到这里，或点击上方「选择文件夹」</p>
+      <p class="hint">只会读取文件夹里的<b>文件名</b>，在本机浏览器中预览并生成新名字，<b>不会上传任何文件到网站/服务器</b>。<br>Chrome / Edge 可直接重命名本机文件；双击打开 HTML 时请用「兼容模式选择」导出脚本。</p>
+    </section>
+
+    <section class="template">
+      <label for="templateInput">重命名模板（修改其中一个文件名，改动会套用到全部文件）</label>
+      <input id="templateInput" type="text" placeholder="例如：<dir>_<n> 或 Photo_<n>.jpg" autocomplete="off" />
+      <p class="template-note" id="templateNote"></p>
+      <div class="tagpalette" id="tagPalette" aria-label="一键插入标签">
+        <span class="tagpalette-label">点一下插入标签：</span>
+        <button type="button" class="chip" data-tag="&lt;n&gt;">🔢 自动编号</button>
+        <button type="button" class="chip" data-tag="&lt;n,5&gt;">🔢 编号从5起</button>
+        <button type="button" class="chip" data-tag="&lt;dir&gt;">📁 文件夹名</button>
+        <button type="button" class="chip" data-tag="&lt;dir,2&gt;">📁 上级文件夹</button>
+        <button type="button" class="chip" data-tag="&lt;r,4&gt;">🎲 随机数字</button>
+        <button type="button" class="chip" data-tag="&lt;rl,4&gt;">🔡 随机小写</button>
+        <button type="button" class="chip" data-tag="&lt;ru,4&gt;">🔠 随机大写</button>
+        <button type="button" class="chip" data-tag="&lt;ra,4&gt;">🔣 小写+数字</button>
+        <button type="button" class="chip" data-tag="&lt;rA,4&gt;">🔣 大写+数字</button>
+        <button type="button" class="chip" data-tag="&lt;rABC,4&gt;">🎯 自定义字符</button>
       </div>
-    </div>
-    <div class="table-wrap">
-      <table id="previewTable">
-        <thead>
-          <tr><th>#</th><th>原文件名</th><th>新文件名</th><th>警告</th></tr>
-        </thead>
-        <tbody id="previewBody"></tbody>
-      </table>
-    </div>
-    <p id="status" class="status"></p>
+    </section>
+
+    <section class="preview">
+      <div class="preview-head">
+        <span>预览（原文件名 → 新文件名）</span>
+        <div class="actions">
+          <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
+          <button id="exportBtn" class="btn" hidden>⬇️ 导出重命名脚本</button>
+          <button id="undoBtn" class="btn" disabled>↩️ 撤销</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="previewTable">
+          <thead>
+            <tr><th>#</th><th>原文件名</th><th>新文件名</th><th>警告</th></tr>
+          </thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <p id="status" class="status"></p>
+    </section>
   </section>
 
-  <details id="help" class="help">
-    <summary>📖 标签说明与使用原理（看不懂语法？点这里）</summary>
-    <div class="help-body">
-      <h3>核心原理</h3>
-      <p>拖入一批结构相似的文件后，列表中<strong>排在第一位</strong>的文件名会成为「重命名模板」。
-        你只修改这个模板名，软件会通过<strong>单词对齐</strong>把你的改动套用到所有文件：</p>
-      <ul>
-        <li>把 <code>Plan Report 2023</code> 改成 <code>P R 2023</code> → 其他文件自动取每个单词的首字母。</li>
-        <li>删掉某个词、在某处插入文字、调整大小写，都会按相同规则应用到每个文件。</li>
-      </ul>
-      <p class="warn">⚠️ 软件可能无法完全理解你的改名意图，重命名前请务必核对每个文件名！</p>
-
-      <h3>标签说明（可直接写进模板，不用背，上面有「一键插入」）</h3>
-      <p class="hint">标签就是「占位符」，软件会根据每个文件自动算出真正的内容。大白话解释如下：</p>
-      <table class="tagtable">
-        <tr><th>标签写法</th><th>大白话意思</th><th>举个栗子（3 个文件）</th></tr>
-        <tr><td><code>&lt;n&gt;</code></td><td><strong>自动编号</strong>，位数跟着文件总数走（1→001，12→012）</td><td>001、002、003</td></tr>
-        <tr><td><code>&lt;n,5&gt;</code></td><td>自动编号，<strong>从第 5 个开始</strong>数</td><td>005、006、007</td></tr>
-        <tr><td><code>&lt;dir&gt;</code></td><td>放进<strong>当前文件夹的名字</strong></td><td>文件夹叫「照片」就填「照片」</td></tr>
-        <tr><td><code>&lt;dir,2&gt;</code></td><td>向上数<strong>第 2 层父文件夹</strong>的名字</td><td>如 <code>D:\旅行\2024\照片</code> → 填「旅行」</td></tr>
-        <tr><td><code>&lt;r&gt;</code></td><td><strong>6 位随机数字</strong>（制造不重复的名字）</td><td>如 482913</td></tr>
-        <tr><td><code>&lt;r,4&gt;</code></td><td><strong>4 位随机数字</strong></td><td>如 0193</td></tr>
-        <tr><td><code>&lt;rl,4&gt;</code></td><td><strong>4 位随机小写字母</strong></td><td>如 akzp</td></tr>
-        <tr><td><code>&lt;ru,4&gt;</code></td><td><strong>4 位随机大写字母</strong></td><td>如 AKZP</td></tr>
-        <tr><td><code>&lt;ra,4&gt;</code></td><td><strong>4 位随机小写字母 + 数字</strong></td><td>如 a3k9</td></tr>
-        <tr><td><code>&lt;rA,4&gt;</code></td><td><strong>4 位随机大写字母 + 数字</strong></td><td>如 A3K9</td></tr>
-        <tr><td><code>&lt;rABC,4&gt;</code></td><td><strong>4 位「ABC」里的随机组合</strong>（ABC 可换成任意字符）</td><td>如 CBAABC</td></tr>
-        <tr><td><code>&lt;abc&gt;</code></td><td>原样输出「abc」三个字。<strong>基本用不到</strong>：模板里直接打字本来就是原文；只有要原样输出像 <code>&lt;n&gt;</code> 这种「长得像标签」的文字时才需要</td><td>输出 abc</td></tr>
-      </table>
-      <p class="hint">小提示：模板里<strong>直接打字就是原文</strong>，比如写 <code>假期照片_&lt;n&gt;</code>，「假期照片_」会原样保留，只有 <code>&lt;n&gt;</code> 变成编号。</p>
-
-      <h3>归档到子文件夹</h3>
-      <p>在模板里用 <code>/</code> 或 <code>\</code> 新建下级目录，例如 <code>Photos/&lt;n&gt;</code> 会把文件移入 Photos 子目录；
-         用 <code>../</code> 或 <code>..\</code> 可把文件上移一级。</p>
+  <section class="block" id="features">
+    <h2 class="sec">它能做什么 <span class="en">What it does</span></h2>
+    <p class="sec-sub">把繁琐的批量改名变成「改一个、全自动」。</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🧩</div><h3>模板批量改名</h3><p>第一个文件当作「改名模板」，你改一处，引擎按规律把同样的变换套用到所有文件。</p></div>
+      <div class="card"><div class="ico">🔢</div><h3>标签自动编号</h3><p>用 <code class="mono">&lt;n&gt;</code> 自动按 001、002… 补零编号，也能指定起始数字、引用父文件夹名。</p></div>
+      <div class="card"><div class="ico">📁</div><h3>子文件夹归档</h3><p>模板里写 <code class="mono">Photos/&lt;n&gt;</code> 就能把文件自动分进子目录；<code class="mono">../</code> 可上移一级。</p></div>
+      <div class="card"><div class="ico">↩️</div><h3>真实改名 + 撤销</h3><p>Chrome / Edge 通过系统接口直接改你本地文件，改完发现不对，一键撤销。</p></div>
+      <div class="card"><div class="ico">📜</div><h3>导出改名脚本</h3><p>不支持的浏览器（或 file:// 打开）可导出 PowerShell 脚本，双击即可批量改名。</p></div>
+      <div class="card"><div class="ico">🌐</div><h3>纯网页零依赖</h3><p>只有一个 HTML + 几个 JS 文件，断网也能用，可整页存到本地双击打开。</p></div>
     </div>
-  </details>
+  </section>
 
-  <footer class="foot">
-    <span>RenamerX · MIT License · 由社区继续维护</span>
-  </footer>
+  <section class="block soft" id="how">
+    <h2 class="sec">工作原理 <span class="en">How it works</span></h2>
+    <p class="sec-sub">不用学正则、不用写公式，靠「对齐」自动推理。</p>
+    <div class="steps">
+      <div class="step"><span class="n"></span><h3>拖入文件</h3><p>把文件夹拖进网页，或点「选择文件夹」。第一个文件会出现在模板框里。</p></div>
+      <div class="step"><span class="n"></span><h3>改一个名字</h3><p>把第一个文件名改成你想要的样子，比如加上前缀、编号或父目录名。</p></div>
+      <div class="step"><span class="n"></span><h3>全部自动套用</h3><p>引擎把「旧名→新名」的变换拆成片段做对齐，推断每个文件该怎么改，实时预览。</p></div>
+    </div>
+    <div class="example">
+      原始：<b>01.mp4</b> &nbsp;→&nbsp; 你写：<b>平屋慢生活.E01.mp4</b><br>
+      引擎识别：在原始名 <b>01</b> 前面加了「平屋慢生活.E」、后面补了「.mp4」<br>
+      套用到 02.mp4 → <b>平屋慢生活.E02.mp4</b>，03 → <b>平屋慢生活.E03.mp4</b> ……以此类推。
+    </div>
+  </section>
 
-  <script type="module" src="app.js"></script>
+  <section class="block" id="tags">
+    <h2 class="sec">标签速查（写进模板即可） <span class="en">Tags</span></h2>
+    <p class="sec-sub">标签就是「占位符」，软件会根据每个文件自动算出真正的内容。看不懂？直接点上面的「一键插入标签」。</p>
+    <table class="tagtable">
+      <tr><th>标签写法</th><th>大白话意思</th><th>举个栗子（3 个文件）</th></tr>
+      <tr><td><code>&lt;n&gt;</code></td><td><strong>自动编号</strong>，位数跟着文件总数走（1→001，12→012）</td><td>001、002、003</td></tr>
+      <tr><td><code>&lt;n,5&gt;</code></td><td>自动编号，<strong>从第 5 个开始</strong>数</td><td>005、006、007</td></tr>
+      <tr><td><code>&lt;dir&gt;</code></td><td>放进<strong>当前文件夹的名字</strong></td><td>文件夹叫「照片」就填「照片」</td></tr>
+      <tr><td><code>&lt;dir,2&gt;</code></td><td>向上数<strong>第 2 层父文件夹</strong>的名字</td><td>如 <code>D:\旅行\2024\照片</code> → 填「旅行」</td></tr>
+      <tr><td><code>&lt;r&gt;</code></td><td><strong>6 位随机数字</strong>（制造不重复的名字）</td><td>如 482913</td></tr>
+      <tr><td><code>&lt;r,4&gt;</code></td><td><strong>4 位随机数字</strong></td><td>如 0193</td></tr>
+      <tr><td><code>&lt;rl,4&gt;</code></td><td><strong>4 位随机小写字母</strong></td><td>如 akzp</td></tr>
+      <tr><td><code>&lt;ru,4&gt;</code></td><td><strong>4 位随机大写字母</strong></td><td>如 AKZP</td></tr>
+      <tr><td><code>&lt;ra,4&gt;</code></td><td><strong>4 位随机小写字母 + 数字</strong></td><td>如 a3k9</td></tr>
+      <tr><td><code>&lt;rA,4&gt;</code></td><td><strong>4 位随机大写字母 + 数字</strong></td><td>如 A3K9</td></tr>
+      <tr><td><code>&lt;rABC,4&gt;</code></td><td><strong>4 位「ABC」里的随机组合</strong>（ABC 可换成任意字符）</td><td>如 CBAABC</td></tr>
+      <tr><td><code>&lt;abc&gt;</code></td><td>原样输出「abc」三个字。<strong>基本用不到</strong>：模板里直接打字本来就是原文；只有要原样输出像 <code>&lt;n&gt;</code> 这种「长得像标签」的文字时才需要</td><td>输出 abc</td></tr>
+    </table>
+    <p class="hint">小提示：模板里<strong>直接打字就是原文</strong>，比如写 <code>假期照片_&lt;n&gt;</code>，「假期照片_」会原样保留，只有 <code>&lt;n&gt;</code> 变成编号。归档到子文件夹：在模板里写 <code>/</code> 新建下级目录（如 <code>Photos/&lt;n&gt;</code>），<code>../</code> 可上移一级。</p>
+  </section>
+
+  <section class="block soft" id="faq">
+    <h2 class="sec">常见问题 <span class="en">FAQ</span></h2>
+    <div class="faq-item"><h3>要下载或安装吗？</h3><p>不用。这是一个纯网页工具，打开就能用；也可以把整页存到本地双击打开。</p></div>
+    <div class="faq-item"><h3>我的文件会被上传吗？</h3><p>不会。所有改名都在你自己的浏览器里完成，文件从不上传任何服务器。「选择文件夹」只会读取文件名来生成新名字。</p></div>
+    <div class="faq-item"><h3>为什么有的浏览器不能真实改名？</h3><p>直接在本地改名需要 Chrome / Edge 等支持的「文件系统接口」；Safari / Firefox 暂不支持，请改用「导出重命名脚本」用 PowerShell 执行。</p></div>
+    <div class="faq-item"><h3>双击打开 HTML 后拖不进去？</h3><p>以 <code>file://</code> 方式打开时浏览器禁止直接读取文件夹，请点「兼容模式选择」并改用「导出脚本」改名。</p></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span>RenamerX · MIT License · 受 SmanRenamer 启发而做的独立网页重写</span>
+    <span class="foot-stat">已服务 <span id="busuanzi_value_site_uv">—</span> 位访客</span>
+  </div>
+</footer>
+
+<script async src="https://busuanzi.9420.ltd/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

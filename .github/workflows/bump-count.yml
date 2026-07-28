@@ -1,8 +1,12 @@
 name: Bump renamed count
 
 on:
-  repository_dispatch:
-    types: [bump]
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'number of renamed files to add'
+        required: false
+        default: '1'
 
 # GITHUB_TOKEN 默认对当前仓库有 contents:write，足够写回 count.json
 permissions:
@@ -16,7 +20,7 @@ jobs:
 
       - name: Bump count.json by payload
         env:
-          ADD: ${{ github.event.client_payload.count }}
+          ADD: ${{ github.event.inputs.count }}
         run: |
           set -e
           cur=$(jq '.renamed' count.json)

@@ -197,7 +197,7 @@ function setRenamedCountText(n) {
 // 真共享计数：count.json 存在仓库里，由 GitHub Action 累加。
 // 前端只读它（无需 token），并显示真实全网总数。
 const COUNT_RAW = `https://raw.githubusercontent.com/${GH_REPO}/main/count.json`;
-const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/dispatches`;
+const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/actions/workflows/bump-count.yml/dispatches`;
 let sharedCount = null;   // 最近一次读到的全网真实总数（null 表示还没读到）
 
 async function fetchSharedCount() {
@@ -241,7 +241,7 @@ async function triggerBump(n) {
         'Content-Type': 'application/json',
         Accept: 'application/vnd.github+json',
       },
-      body: JSON.stringify({ event_type: 'bump', client_payload: { count: n } }),
+      body: JSON.stringify({ ref: 'main', inputs: { count: String(n) } }),
     });
   } catch (_) { /* 触发失败不影响本机显示 */ }
 }

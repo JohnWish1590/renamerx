@@ -21,14 +21,12 @@ const els = {
   undoBtn: document.getElementById('undoBtn'),
   previewBody: document.getElementById('previewBody'),
   status: document.getElementById('status'),
-  githubLink: document.getElementById('githubLink'),
   banner: document.getElementById('banner'),
   pickCompatBtn: document.getElementById('pickCompatBtn'),
   dirInput: document.getElementById('dirInput'),
   exportBtn: document.getElementById('exportBtn'),
   tagPalette: document.getElementById('tagPalette'),
 };
-els.githubLink.href = GITHUB_URL;
 
 const state = {
   rootHandle: null,

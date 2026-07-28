@@ -188,10 +188,14 @@ const RENAMED_COUNT_KEY = 'renamerx_renamed_count';
 function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
+function setRenamedCountText(n) {
+  const el = els.renamedCount || document.getElementById('renamed-count');
+  if (el) el.textContent = fmtNum(n);
+}
 function loadRenamedCount() {
   try {
     const n = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
-    if (els.renamedCount) els.renamedCount.textContent = fmtNum(n);
+    setRenamedCountText(n);
   } catch (_) {}
 }
 function addRenamedCount(n) {
@@ -199,23 +203,26 @@ function addRenamedCount(n) {
     const cur = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
     const next = cur + n;
     localStorage.setItem(RENAMED_COUNT_KEY, String(next));
-    if (els.renamedCount) els.renamedCount.textContent = fmtNum(next);
+    setRenamedCountText(next);
   } catch (_) {}
 }
 
-// 不蒜子异步渲染，轮询格式化数字
+// 不蒜子异步渲染，轮询格式化数字（页脚/统计条都可能出现，统一更新所有同名 id）
 function fmtBusuanzi() {
-  const el = document.getElementById('busuanzi_value_site_uv');
-  if (!el) return;
-  let seen = 0;
   const timer = setInterval(() => {
-    const text = el.textContent || '';
-    const n = parseInt(text.replace(/,/g, '').replace(/—/g, ''), 10);
-    if (!isNaN(n) && n > 0 && n !== seen) {
-      seen = n;
-      el.textContent = fmtNum(n);
-      clearInterval(timer);
-    }
+    let changed = false;
+    document.querySelectorAll('#busuanzi_value_site_uv').forEach(el => {
+      const text = el.textContent || '';
+      const n = parseInt(text.replace(/,/g, '').replace(/—/g, ''), 10);
+      if (!isNaN(n) && n > 0) {
+        const formatted = fmtNum(n);
+        if (el.textContent !== formatted) {
+          el.textContent = formatted;
+          changed = true;
+        }
+      }
+    });
+    if (changed) clearInterval(timer);
   }, 300);
   setTimeout(() => clearInterval(timer), 6000);
 }

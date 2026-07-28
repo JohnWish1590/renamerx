@@ -23,6 +23,13 @@ const elements = {};
 const document = {
   getElementById(id) { return elements[id] ||= new El(id); },
   createElement() { return new El('a'); },
+  querySelectorAll(sel) {
+    if (sel === '#busuanzi_value_site_uv') {
+      const el = this.getElementById('busuanzi_value_site_uv');
+      return [el];
+    }
+    return [];
+  },
   body: { appendChild() {} },
 };
 const win = {

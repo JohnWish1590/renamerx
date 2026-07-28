@@ -217,8 +217,16 @@ async function resolveParent(rootHandle, parts) {
 // 应用重命名
 // --------------------------------------------------------------------------
 async function applyRenames() {
-  if (!state.rootHandle) return;
+  if (state.mode === 'compat' || !state.rootHandle) {
+    setStatus('当前无法真实改名。兼容模式或 file:// 打开时，请使用「导出重命名脚本」手动执行。', 'err');
+    return;
+  }
+  setStatus('正在应用重命名…', 'ok');
   const sorted = getSorted();
+  if (!sorted.length) {
+    setStatus('没有需要重命名的文件。', 'err');
+    return;
+  }
   const res = computeRenames({
     files: sorted,
     templateOriginal: state.templateOriginal,

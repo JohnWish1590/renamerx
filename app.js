@@ -200,15 +200,9 @@ function notifyRenamed(count) {
   } catch (_) { /* 跨域或被拦截时静默忽略 */ }
 }
 
-// 本机累计重命名文件数（无需账号，localStorage 持久化；在浏览器中始终可用）
-const RENAMED_COUNT_KEY = 'renamerx_renamed_count';
-function getLocalCount() {
-  try { return parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0; }
-  catch (_) { return 0; }
-}
-function setLocalCount(n) {
-  try { localStorage.setItem(RENAMED_COUNT_KEY, String(n)); } catch (_) {}
-}
+// 全网共享计数：count.json 是「唯一真相来源」，所有浏览器都读同一个数字，
+// 因此任何人看到的「已重命名」都完全一致。本地不再用 localStorage 持久化，
+// 避免不同浏览器看到不一样的累计值。
 function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -217,9 +211,6 @@ function setRenamedCountText(n) {
   if (el) el.textContent = fmtNum(n);
 }
 
-// 真共享计数：count.json 存在仓库里，由 GitHub Action 累加。
-// 前端只读它（无需 token），并显示真实全网总数；未配置前端 token 时，
-// 计数由本机 localStorage 持久累积，刷新后依然正确。
 const COUNT_RAW = `https://raw.githubusercontent.com/${GH_REPO}/main/count.json`;
 const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/actions/workflows/bump-count.yml/dispatches`;
 let sharedCount = null;   // 最近一次读到的全网真实总数（null 表示还没读到）
@@ -233,23 +224,29 @@ async function fetchSharedCount() {
   } catch (_) { return null; }
 }
 
-// 加载时：以「全网共享值」和「本机累计值」的较大者为基准，避免任一方丢失进度。
-// 这样即使共享计数暂时不可用（未配置 token / 网络失败），本机数字也始终正确且持久。
+// 加载时：只显示全网共享值（count.json）。这就是所有浏览器统一的那个数字。
 async function loadRenamedCount() {
   const shared = await fetchSharedCount();
-  const local = getLocalCount();
-  const base = shared !== null ? Math.max(shared, local) : local;
-  if (shared !== null) sharedCount = shared;
-  setLocalCount(base);
-  setRenamedCountText(base);
+  if (shared !== null) {
+    sharedCount = shared;
+    setRenamedCountText(shared);
+  }
 }
 
-// 改名成功后：本机立即 +N 并持久化（刷新后正确），同时触发 Action 让全网 +N（若已配置 token）
+// 改名成功后：先「乐观」显示 sharedCount + N 给即时反馈，同时触发 Action 让全网 +N；
+// 等 GitHub Action 把新数写回 count.json（约几秒）后，再读一次「回正」，
+// 使所有浏览器最终都收敛到同一个真实总数。
 function addRenamedCount(n) {
-  const next = getLocalCount() + n;
-  setLocalCount(next);
-  setRenamedCountText(next);
+  const base = sharedCount !== null ? sharedCount : 0;
+  setRenamedCountText(base + n);
   triggerBump(n);
+  setTimeout(async () => {
+    const shared = await fetchSharedCount();
+    if (shared !== null) {
+      sharedCount = shared;
+      setRenamedCountText(shared);
+    }
+  }, 5000);
 }
 
 // 触发 GitHub Action 累加（需要 fine-grained 限定 token；未配置则不触发）

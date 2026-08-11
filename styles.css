@@ -98,7 +98,7 @@ main.wrap{padding-bottom:40px;}
 
 /* toast 提示气泡（应用重命名后的清晰反馈）
    位置：页面中下部，避开顶部文字；样式参考「选择文件夹」按钮 */
-.toast{position:fixed;top:58%;left:50%;transform:translate(-50%,calc(-50% + 10px));z-index:100;max-width:90vw;padding:11px 18px;border-radius:9px;background:var(--accent);border:1px solid var(--accent);box-shadow:0 14px 34px -12px rgba(30,64,175,.45);font-size:15px;font-weight:600;color:#fff;opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
+.toast{position:fixed;top:80%;left:50%;transform:translate(-50%,calc(-50% + 10px));z-index:100;max-width:90vw;padding:11px 18px;border-radius:9px;background:var(--accent);border:1px solid var(--accent);box-shadow:0 14px 34px -12px rgba(30,64,175,.45);font-size:15px;font-weight:600;color:#fff;opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
 .toast.show{opacity:1;transform:translate(-50%,-50%);}
 .toast.err{background:var(--danger);border-color:var(--danger);box-shadow:0 14px 34px -12px rgba(220,38,38,.4);}
 

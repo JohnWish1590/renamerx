@@ -85,7 +85,7 @@ main.wrap{padding-bottom:40px;}
 .preview{padding:18px 0 0;}
 .preview-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px;}
 .preview-head>span{font-size:14px;font-weight:600;}
-.actions{display:flex;gap:10px;}
+.actions{display:flex;gap:10px;position:relative;align-items:center;}
 .table-wrap{background:#fff;border:1px solid var(--line);border-radius:10px;max-height:52vh;overflow:auto;}
 #previewTable{width:100%;border-collapse:collapse;font-size:13.5px;}
 #previewTable th,#previewTable td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);}
@@ -97,10 +97,10 @@ main.wrap{padding-bottom:40px;}
 .status.err{color:var(--danger);}
 
 /* toast 提示气泡（应用重命名后的清晰反馈）
-   位置：页面中下部，避开顶部文字；样式参考「选择文件夹」按钮 */
-.toast{position:fixed;top:80%;left:50%;transform:translate(-50%,calc(-50% + 10px));z-index:100;max-width:90vw;padding:11px 18px;border-radius:9px;background:var(--accent);border:1px solid var(--accent);box-shadow:0 14px 34px -12px rgba(30,64,175,.45);font-size:15px;font-weight:600;color:#fff;opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;}
-.toast.show{opacity:1;transform:translate(-50%,-50%);}
-.toast.err{background:var(--danger);border-color:var(--danger);box-shadow:0 14px 34px -12px rgba(220,38,38,.4);}
+   位置：「应用重命名」按钮左侧，跟随按钮，不随文件数量变化；样式参考「选择文件夹」按钮 */
+.toast{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(calc(-50% + 6px));z-index:100;max-width:60vw;padding:9px 14px;border-radius:9px;background:var(--accent);border:1px solid var(--accent);box-shadow:0 10px 26px -10px rgba(30,64,175,.45);font-size:14px;font-weight:600;color:#fff;opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateY(-50%);}
+.toast.err{background:var(--danger);border-color:var(--danger);box-shadow:0 10px 26px -10px rgba(220,38,38,.4);}
 
 /* blocks */
 .block{padding:18px 0 6px;}

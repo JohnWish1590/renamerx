@@ -123,9 +123,10 @@
     <section class="preview">
       <div class="preview-head">
         <span>预览（原文件名 → 新文件名）</span>
-        <div class="actions">
-          <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
-        </div>
+      <div class="actions">
+        <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+        <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
+      </div>
       </div>
       <div class="table-wrap">
         <table id="previewTable">
@@ -136,7 +137,6 @@
         </table>
       </div>
       <p id="status" class="status"></p>
-      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     </section>
   </section>
 

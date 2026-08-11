@@ -26,6 +26,7 @@ const els = {
   pickCompatBtn: document.getElementById('pickCompatBtn'),
   dirInput: document.getElementById('dirInput'),
   tagPalette: document.getElementById('tagPalette'),
+  toast: document.getElementById('toast'),
 };
 
 const state = {
@@ -175,6 +176,21 @@ function setStatus(msg, kind) {
   els.status.className = 'status' + (kind ? ' ' + kind : '');
 }
 
+// 轻量提示气泡：应用重命名后弹出，2.6s 后自动消失（clear 的反馈，避免「点了没反应」）
+let toastTimer;
+function showToast(msg, type = 'ok') {
+  const el = els.toast;
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+  el.className = 'toast ' + type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.className = 'toast ' + type;
+    el.hidden = true;
+  }, 2600);
+}
+
 // 改名完成后通知父页面（用于发布站的人气计数）。在 iframe 内才发送，直接打开时不打扰。
 function notifyRenamed(count) {
   try {
@@ -184,8 +200,15 @@ function notifyRenamed(count) {
   } catch (_) { /* 跨域或被拦截时静默忽略 */ }
 }
 
-// 本机累计重命名文件数（无需账号，localStorage 持久化）
+// 本机累计重命名文件数（无需账号，localStorage 持久化；在浏览器中始终可用）
 const RENAMED_COUNT_KEY = 'renamerx_renamed_count';
+function getLocalCount() {
+  try { return parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0; }
+  catch (_) { return 0; }
+}
+function setLocalCount(n) {
+  try { localStorage.setItem(RENAMED_COUNT_KEY, String(n)); } catch (_) {}
+}
 function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -195,7 +218,8 @@ function setRenamedCountText(n) {
 }
 
 // 真共享计数：count.json 存在仓库里，由 GitHub Action 累加。
-// 前端只读它（无需 token），并显示真实全网总数。
+// 前端只读它（无需 token），并显示真实全网总数；未配置前端 token 时，
+// 计数由本机 localStorage 持久累积，刷新后依然正确。
 const COUNT_RAW = `https://raw.githubusercontent.com/${GH_REPO}/main/count.json`;
 const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/actions/workflows/bump-count.yml/dispatches`;
 let sharedCount = null;   // 最近一次读到的全网真实总数（null 表示还没读到）
@@ -209,24 +233,22 @@ async function fetchSharedCount() {
   } catch (_) { return null; }
 }
 
+// 加载时：以「全网共享值」和「本机累计值」的较大者为基准，避免任一方丢失进度。
+// 这样即使共享计数暂时不可用（未配置 token / 网络失败），本机数字也始终正确且持久。
 async function loadRenamedCount() {
   const shared = await fetchSharedCount();
-  if (shared !== null) {
-    sharedCount = shared;
-    setRenamedCountText(shared);
-  } else {
-    // 离线 / 网络失败兜底：显示本机累计
-    const local = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
-    setRenamedCountText(local);
-  }
+  const local = getLocalCount();
+  const base = shared !== null ? Math.max(shared, local) : local;
+  if (shared !== null) sharedCount = shared;
+  setLocalCount(base);
+  setRenamedCountText(base);
 }
 
-// 改名成功后：本机即时乐观 +N 显示，同时触发 Action 让全网 +N
+// 改名成功后：本机立即 +N 并持久化（刷新后正确），同时触发 Action 让全网 +N（若已配置 token）
 function addRenamedCount(n) {
-  const local = parseInt(localStorage.getItem(RENAMED_COUNT_KEY) || '0', 10) || 0;
-  localStorage.setItem(RENAMED_COUNT_KEY, String(local + n));
-  // 乐观更新：显示 全网已知总数 + 本次新增（下次刷新以 count.json 为准）
-  setRenamedCountText((sharedCount !== null ? sharedCount : local) + n);
+  const next = getLocalCount() + n;
+  setLocalCount(next);
+  setRenamedCountText(next);
   triggerBump(n);
 }
 
@@ -283,6 +305,7 @@ async function applyRenames() {
   try {
     if (state.mode === 'compat' || !state.rootHandle) {
       setStatus('当前无法真实改名。兼容模式或 file:// 打开时，请使用「导出重命名脚本」手动执行。', 'err');
+      showToast('⚠️ 当前无法真实改名（兼容模式 / file://）', 'err');
       return;
     }
     setStatus(`正在应用重命名…（已加载 ${state.files.length} 个文件，rootHandle=${!!state.rootHandle}）`, 'ok');
@@ -299,10 +322,12 @@ async function applyRenames() {
     });
     if (res.some(r => r.warnings.length)) {
       setStatus('存在冲突或非法字符，已阻止重命名。', 'err');
+      showToast('⚠️ 存在冲突或非法字符，已阻止重命名', 'err');
       return;
     }
     if (!('move' in (sorted[0]?.handle || {}))) {
       setStatus('当前浏览器不支持真实重命名（需要 Chrome / Edge 新版）。', 'err');
+      showToast('⚠️ 当前浏览器不支持真实重命名', 'err');
       return;
     }
 
@@ -318,16 +343,20 @@ async function applyRenames() {
         f.dirParts = parent;
         ok++;
       } catch (e) {
-        setStatus(`重命名失败：${e && e.message ? e.message : e}`, 'err');
+        const msg = e && e.message ? e.message : e;
+        setStatus(`重命名失败：${msg}`, 'err');
+        showToast(`❌ 重命名失败：${msg}`, 'err');
         break;
       }
     }
     if (ok > 0) {
       setStatus(`成功重命名 ${ok} 个文件。`, 'ok');
+      showToast(`✅ 成功重命名 ${ok} 个文件`, 'ok');
       addRenamedCount(ok);
       notifyRenamed(ok);
     } else {
       setStatus('没有任何文件被重命名（可能目标名与原名相同，或 move 未生效）。', 'err');
+      showToast('⚠️ 没有文件被重命名', 'err');
     }
     render();
   } catch (e) {

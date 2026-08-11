@@ -96,6 +96,12 @@ main.wrap{padding-bottom:40px;}
 .status.ok{color:var(--green);}
 .status.err{color:var(--danger);}
 
+/* toast 提示气泡（应用重命名后的清晰反馈） */
+.toast{position:fixed;top:82px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:100;max-width:90vw;padding:13px 22px;border-radius:12px;background:#fff;border:1px solid var(--line);border-left:5px solid var(--muted);box-shadow:0 18px 50px -20px rgba(15,23,42,.45);font-size:15px;font-weight:700;color:var(--text);opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{border-left-color:var(--green);color:var(--green);}
+.toast.err{border-left-color:var(--danger);color:var(--danger);}
+
 /* blocks */
 .block{padding:18px 0 6px;}
 .block.soft{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px;margin:18px 0;}

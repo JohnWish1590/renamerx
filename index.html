@@ -122,7 +122,7 @@
 
     <section class="preview">
       <div class="preview-head">
-        <span>预览（原文件名 → 新文件名）</span>
+        <span>预览（勾选要改的文件 · 原文件名 → 新文件名）</span>
       <div class="actions">
         <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
         <button id="applyBtn" class="btn primary" disabled>✅ 应用重命名</button>
@@ -131,7 +131,7 @@
       <div class="table-wrap">
         <table id="previewTable">
           <thead>
-            <tr><th>#</th><th>原文件名</th><th>新文件名</th></tr>
+            <tr><th class="col-check"><input type="checkbox" id="selectAll" checked title="全选 / 取消全选" aria-label="全选" /></th><th>#</th><th>原文件名</th><th>新文件名</th></tr>
           </thead>
           <tbody id="previewBody"></tbody>
         </table>

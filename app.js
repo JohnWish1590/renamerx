@@ -27,6 +27,7 @@ const els = {
   dirInput: document.getElementById('dirInput'),
   tagPalette: document.getElementById('tagPalette'),
   toast: document.getElementById('toast'),
+  selectAll: document.getElementById('selectAll'),
 };
 
 const state = {
@@ -69,7 +70,7 @@ async function collect(dirHandle, relParts, recursive) {
         size = f.size || 0;
         ctime = mtime;
       } catch (_) { /* 某些文件无法读取，忽略 */ }
-      state.files.push({ handle: entry, name: entry.name, dirParts: relParts, ctime, mtime, size });
+      state.files.push({ handle: entry, name: entry.name, dirParts: relParts, ctime, mtime, size, selected: true });
     } else if (entry.kind === 'directory' && recursive) {
       await collect(entry, relParts.concat(entry.name), recursive);
     }
@@ -78,7 +79,8 @@ async function collect(dirHandle, relParts, recursive) {
 
 function resetTemplate() {
   const sorted = getSorted();
-  state.templateOriginal = sorted.length ? sorted[0].name : '';
+  const first = sorted.find(f => f.selected) || sorted[0];
+  state.templateOriginal = first ? first.name : '';
   state.templateEdited = state.templateOriginal;
   state.dirty = false;
   els.templateInput.value = state.templateEdited;
@@ -113,8 +115,23 @@ function getSorted() {
 // --------------------------------------------------------------------------
 function render() {
   const sorted = getSorted();
-  els.count.textContent = sorted.length ? `已选择 ${sorted.length} 个文件` : '未加载文件';
-  state.templateOriginal = sorted.length ? sorted[0].name : '';
+  const selected = sorted.filter(f => f.selected);
+
+  // 计数文案：已加载 N 个，勾选 M 个待重命名
+  els.count.textContent = sorted.length
+    ? `已加载 ${sorted.length} 个文件，已勾选 ${selected.length} 个待重命名`
+    : '未加载文件';
+
+  // 模板来源跟随「第一个勾选的文件」；未手动编辑时让模板跟着它走
+  const firstSel = sorted.find(f => f.selected);
+  if (firstSel && state.templateOriginal !== firstSel.name) {
+    state.templateOriginal = firstSel.name;
+    if (!state.dirty) {
+      state.templateEdited = firstSel.name;
+      els.templateInput.value = state.templateEdited;
+    }
+    updateTemplateNote();
+  }
 
   // 文件加载后自动隐藏 dropzone，进入编辑态；显示「重新选择」按钮
   els.dropzone.hidden = sorted.length > 0;
@@ -123,34 +140,56 @@ function render() {
   if (!sorted.length) {
     els.previewBody.innerHTML = '';
     els.applyBtn.disabled = true;
+    if (els.selectAll) { els.selectAll.checked = false; els.selectAll.indeterminate = false; }
     return;
   }
 
   const res = computeRenames({
-    files: sorted,
+    files: selected,
     templateOriginal: state.templateOriginal,
     templateEdited: state.templateEdited,
     options: { sort: els.sort.value, order: els.order.value },
   });
 
+  // 与「未勾选文件」的现有名字冲突检测（防止把文件改名成另一个未勾选文件的名字）
+  const unselKeys = new Set(
+    state.files.filter(f => !f.selected).map(f => (f.dirParts || []).join('/') + '/' + f.name)
+  );
+  for (const r of res) {
+    if (unselKeys.has(r.relativeKey)) r.warnings.push('目标名与未勾选的文件重名，将冲突');
+  }
+
   const hasWarn = res.some(r => r.warnings.length);
-  els.applyBtn.disabled = hasWarn || state.mode === 'compat';
+  els.applyBtn.disabled = !selected.length || hasWarn || state.mode === 'compat';
   els.applyBtn.hidden = state.mode === 'compat';
 
+  // 表头全选框状态
+  if (els.selectAll) {
+    els.selectAll.checked = selected.length === sorted.length;
+    els.selectAll.indeterminate = selected.length > 0 && selected.length < sorted.length;
+  }
+
+  const renameMap = new Map(res.map(r => [r.file, r]));
+
   // 预览表格只渲染前 MAX_PREVIEW 行，避免超大文件夹把 DOM 撑爆导致 OOM
-  const showCount = Math.min(res.length, MAX_PREVIEW);
+  const showCount = Math.min(sorted.length, MAX_PREVIEW);
   let html = '';
   for (let i = 0; i < showCount; i++) {
-    const r = res[i];
-    html += `<tr>
+    const f = sorted[i];
+    const isSel = f.selected;
+    const r = renameMap.get(f);
+    const newName = isSel ? r.renamed : f.name;
+    const rowCls = isSel ? '' : ' class="row-unchecked"';
+    html += `<tr${rowCls}>
+      <td class="col-check"><input type="checkbox" class="row-check" data-idx="${i}" ${isSel ? 'checked' : ''} aria-label="选择 ${escapeHtml(f.name)}" /></td>
       <td class="col-idx">${i + 1}</td>
-      <td class="col-old">${escapeHtml(r.original)}</td>
-      <td class="col-new">${escapeHtml(r.renamed)}</td>
+      <td class="col-old">${escapeHtml(f.name)}</td>
+      <td class="col-new">${escapeHtml(newName)}</td>
     </tr>`;
   }
-  if (res.length > MAX_PREVIEW) {
-    html += `<tr><td class="col-idx">…</td><td colspan="2" class="warn-cell">` +
-      `还有 ${res.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${res.length} 个），应用时仍会处理全部文件。` +
+  if (sorted.length > MAX_PREVIEW) {
+    html += `<tr><td class="col-check"></td><td class="col-idx">…</td><td colspan="2" class="warn-cell">` +
+      `还有 ${sorted.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${sorted.length} 个），应用时只处理勾选的文件。` +
       `</td></tr>`;
   }
   els.previewBody.innerHTML = html;
@@ -158,12 +197,14 @@ function render() {
   if (hasWarn) {
     const n = res.filter(r => r.warnings.length).length;
     setStatus(`有 ${n} 个文件存在警告（冲突或非法字符），请修正模板后再应用。`, 'err');
-  } else if (res.length > MAX_PREVIEW) {
-    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${res.length} 个）。确认无误后点击「应用重命名」。`, 'ok');
+  } else if (!selected.length) {
+    setStatus('没有任何文件被勾选。请在预览表最左列勾选需要改名的文件。', 'err');
+  } else if (sorted.length > MAX_PREVIEW) {
+    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${sorted.length} 个，已勾选 ${selected.length} 个）。确认无误后点击「应用重命名」。`, 'ok');
   } else if (state.mode === 'compat') {
     setStatus('兼容模式仅可预览，真实改名请用 Chrome / Edge 在线打开本页。', 'ok');
   } else {
-    setStatus('预览已更新，确认无误后点击「应用重命名」。', 'ok');
+    setStatus(`预览已更新，已勾选 ${selected.length} 个文件。确认无误后点击「应用重命名」。`, 'ok');
   }
 }
 
@@ -305,24 +346,39 @@ async function applyRenames() {
       showToast('⚠️ 当前无法真实改名（兼容模式 / file://）', 'err');
       return;
     }
-    setStatus(`正在应用重命名…（已加载 ${state.files.length} 个文件，rootHandle=${!!state.rootHandle}）`, 'ok');
+    setStatus(`正在应用重命名…（已勾选 ${getSorted().filter(f => f.selected).length} 个文件）`, 'ok');
     const sorted = getSorted();
-    if (!sorted.length) {
-      setStatus('没有需要重命名的文件。', 'err');
+    const selected = sorted.filter(f => f.selected);
+    if (!selected.length) {
+      setStatus('没有勾选任何要重命名的文件。请在预览表最左列勾选需要改名的文件。', 'err');
+      showToast('⚠️ 没有勾选要重命名的文件', 'err');
       return;
     }
     const res = computeRenames({
-      files: sorted,
+      files: selected,
       templateOriginal: state.templateOriginal,
       templateEdited: state.templateEdited,
       options: { sort: els.sort.value, order: els.order.value },
     });
+
+    // 与未勾选文件冲突检测：若新名与某个未勾选文件现有名相同，改名会失败，提前阻止
+    const unselKeys = new Set(
+      state.files.filter(f => !f.selected).map(f => (f.dirParts || []).join('/') + '/' + f.name)
+    );
+    for (const r of res) {
+      if (unselKeys.has(r.relativeKey)) {
+        setStatus(`目标名「${r.renamed}」与未勾选的文件「${r.original}」重名，已阻止重命名。`, 'err');
+        showToast('⚠️ 存在与未勾选文件重名的冲突', 'err');
+        return;
+      }
+    }
+
     if (res.some(r => r.warnings.length)) {
       setStatus('存在冲突或非法字符，已阻止重命名。', 'err');
       showToast('⚠️ 存在冲突或非法字符，已阻止重命名', 'err');
       return;
     }
-    if (!('move' in (sorted[0]?.handle || {}))) {
+    if (!('move' in (selected[0]?.handle || {}))) {
       setStatus('当前浏览器不支持真实重命名（需要 Chrome / Edge 新版）。', 'err');
       showToast('⚠️ 当前浏览器不支持真实重命名', 'err');
       return;
@@ -331,7 +387,7 @@ async function applyRenames() {
     let ok = 0;
     for (let i = 0; i < res.length; i++) {
       const r = res[i];
-      const f = sorted[i];
+      const f = selected[i];
       try {
         const { parent, base } = resolveTargetPath(f, r.renamed);
         const parentHandle = await resolveParent(state.rootHandle, parent);
@@ -387,6 +443,7 @@ async function loadFromCompat(input) {
       ctime: 0,
       mtime: f.lastModified || 0,
       size: f.size || 0,
+      selected: true,
     });
   }
   state.compatRoot = rootName || '选中的文件夹';
@@ -503,6 +560,23 @@ els.tagPalette.addEventListener('click', e => {
 });
 
 els.applyBtn.addEventListener('click', applyRenames);
+
+// 预览表复选框：勾选 / 取消勾选决定哪些文件参与重命名（事件委托，行是每次重渲染生成的）
+els.previewBody.addEventListener('change', e => {
+  const cb = e.target.closest('input.row-check');
+  if (!cb) return;
+  const idx = Number(cb.dataset.idx);
+  const f = getSorted()[idx];
+  if (f) { f.selected = cb.checked; render(); }
+});
+// 表头全选框：一键勾选 / 取消勾选全部
+if (els.selectAll) {
+  els.selectAll.addEventListener('change', () => {
+    const on = els.selectAll.checked;
+    for (const f of state.files) f.selected = on;
+    render();
+  });
+}
 
 // 拖拽文件夹
 ['dragenter', 'dragover'].forEach(ev => els.dropzone.addEventListener(ev, e => {

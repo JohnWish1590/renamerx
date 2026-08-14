@@ -313,3 +313,5 @@ node --check app.js # 语法检查
 ## 协议
 
 [MIT](./LICENSE) © Weixin Zhang (JohnWish1590)
+
+Socials: @下一站澳门. DM for inquiries.

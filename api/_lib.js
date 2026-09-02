@@ -8,37 +8,72 @@
 //      成本陡增，且异常一眼可见。
 //   3. 只存 IP 的哈希，不落明文 IP（隐私友好），够用于限流与访客去重。
 
-import { Redis } from '@upstash/redis';
-
-// —— Redis 连接 ——
-// 注意：不要用 @vercel/kv！Vercel KV 产品已于 2024-12 日落，npm 包也已废弃。
-// 现在统一走 Vercel Marketplace 的 Upstash Redis + @upstash/redis（REST 客户端，Edge 可用）。
+// —— 零依赖 Upstash REST 后端 ——
+// 不再依赖 @upstash/redis（那个 npm 包在 Vercel Edge 运行时里加载/打包会
+// FUNCTION_INVOCATION_FAILED）。直接用 Edge 原生 fetch 打 Upstash REST API，
+// 零依赖、零打包风险，且读/写完全一致。
 // 兼容多组环境变量名：
 //   - 新版 Upstash 集成：UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
 //   - 老版 Vercel KV 集成：KV_REST_API_URL / KV_REST_API_TOKEN
-//   - 新版 Marketplace 的通用 Storage 前缀：STORAGE_URL / STORAGE_TOKEN（前缀可自定义，若用默认则兼容）
+//   - 新版 Marketplace 的通用 Storage 前缀：STORAGE_URL / STORAGE_TOKEN
 // 装完集成 Vercel 会自动注入，不用手动抄；如果名字实在对不上，把变量名告诉我再扩列表。
+
 let _redis = null;
 export function redis() {
   if (_redis) return _redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL
-           || process.env.KV_REST_API_URL
-           || process.env.STORAGE_URL
-           || process.env.REDIS_REST_URL
-           || '';
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
-             || process.env.KV_REST_API_TOKEN
-             || process.env.STORAGE_TOKEN
-             || process.env.REDIS_REST_TOKEN
-             || '';
-  if (!url || !token) {
-    throw new Error('Redis 未配置：缺少 UPSTASH_REDIS_REST_URL / KV_REST_API_URL / STORAGE_URL 等');
-  }
-  _redis = new Redis({ url, token });
+  _redis = createUpstashBackend();
   return _redis;
 }
 // 仅供测试注入内存版 Redis
 export function __setRedis(r) { _redis = r; }
+
+function upstashBase() {
+  return (process.env.UPSTASH_REDIS_REST_URL
+       || process.env.KV_REST_API_URL
+       || process.env.STORAGE_URL
+       || process.env.REDIS_REST_URL
+       || '').replace(/\/+$/, '');
+}
+function upstashToken() {
+  return process.env.UPSTASH_REDIS_REST_TOKEN
+      || process.env.KV_REST_API_TOKEN
+      || process.env.STORAGE_TOKEN
+      || process.env.REDIS_REST_TOKEN
+      || '';
+}
+function createUpstashBackend() {
+  const base = upstashBase();
+  const token = upstashToken();
+  if (!base || !token) {
+    throw new Error('Redis 未配置：缺少 UPSTASH_REDIS_REST_URL / KV_REST_API_URL / STORAGE_URL 等');
+  }
+  const enc = encodeURIComponent;
+  // Upstash REST：命令即路径（POST 即可，读命令也用 POST 避免被边缘缓存）
+  async function call(path) {
+    const res = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Upstash 返回非 JSON: ' + text.slice(0, 160)); }
+    if (data && data.error) {
+      throw new Error('Upstash 错误: ' + (typeof data.error === 'string' ? data.error : JSON.stringify(data.error)));
+    }
+    return data ? data.result : undefined;
+  }
+  return {
+    async get(key) { return call(`/get/${enc(key)}`); },
+    async set(key, val) { return call(`/set/${enc(key)}/${enc(String(val))}`); },
+    async incrby(key, n) { return call(`/incrby/${enc(key)}/${n}`); },
+    async expire(key, sec) { return call(`/expire/${enc(key)}/${sec}`); },
+    async lpush(key, val) { return call(`/lpush/${enc(key)}/${enc(typeof val === 'string' ? val : JSON.stringify(val))}`); },
+    async ltrim(key, start, stop) { return call(`/ltrim/${enc(key)}/${start}/${stop}`); },
+    async lrange(key, start, stop) { return call(`/lrange/${enc(key)}/${start}/${stop}`); },
+    async sadd(key, member) { return call(`/sadd/${enc(key)}/${enc(member)}`); },
+    async scard(key) { return call(`/scard/${enc(key)}`); },
+  };
+}
 
 // —— 限额 ——
 export const HOURLY_LIMIT = 500;   // 单 IP 每小时上限
@@ -154,12 +189,13 @@ export async function bumpCount(n, ipHash, meta) {
     r.incrby(hKey, n),
     r.incrby(dKey, n),
   ]);
-  // incrby 创建的键可能没有过期时间，补一次 TTL
+  // incrby 创建的键可能没有过期时间，补一次 TTL（失败不影响计数）
   await Promise.all([
-    r.expire(hKey, 7200),    // 2 小时
-    r.expire(dKey, 93600),   // 26 小时
+    r.expire(hKey, 7200).catch(() => {}),    // 2 小时
+    r.expire(dKey, 93600).catch(() => {}),   // 26 小时
   ]);
 
+  // 以下日志 / 访客统计为辅助信息，失败不影响计数本身（await 但吞掉异常）
   const entry = {
     t: new Date().toISOString(),
     n,
@@ -168,12 +204,15 @@ export async function bumpCount(n, ipHash, meta) {
     country: meta.country || '',
     ua: (meta.ua || '').slice(0, 160),
   };
-  await r.lpush('logs', entry);
-  await r.ltrim('logs', 0, LOG_KEEP - 1);
-
-  // 当日访客集合（用于「今天有多少人」）
-  await r.sadd(`v:${day}`, ipHash);
-  await r.expire(`v:${day}`, 172800);
+  // lpush 必须排在 ltrim 之前、且各自 await，避免「读-改-写」非原子后端
+  // （如测试用的内存 Redis）里 ltrim 用旧空数组覆盖掉刚 push 的日志。
+  // 真实 Upstash 单命令原子，这里顺序执行也只是多一道保险，不影响结果。
+  await r.lpush('logs', entry).catch(() => {});
+  await r.ltrim('logs', 0, LOG_KEEP - 1).catch(() => {});
+  await Promise.all([
+    r.sadd(`v:${day}`, ipHash).catch(() => {}),
+    r.expire(`v:${day}`, 172800).catch(() => {}),
+  ]).catch(() => {});
 
   return { ok: true, count: newCount, added: n };
 }

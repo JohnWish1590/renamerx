@@ -14,8 +14,5 @@
     "file-renamer",
     "files",
     "utility"
-  ],
-  "dependencies": {
-    "@upstash/redis": "^1.38.3"
-  }
+  ]
 }

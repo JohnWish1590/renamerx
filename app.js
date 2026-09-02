@@ -30,8 +30,8 @@ const els = {
   selectAll: document.getElementById('selectAll'),
   subModal: document.getElementById('subModal'),
   subModalMsg: document.getElementById('subModalMsg'),
-  subIncludeBtn: document.getElementById('subIncludeBtn'),
-  subTopBtn: document.getElementById('subTopBtn'),
+  subModalHint: document.getElementById('subModalHint'),
+  subConfirmBtn: document.getElementById('subConfirmBtn'),
 };
 
 const state = {
@@ -94,52 +94,44 @@ async function scanTopLevel(dirHandle) {
   return { fileCount, hasSub };
 }
 
-// 子文件夹确认弹窗：返回 Promise<boolean>（true=包含子文件夹一起处理）
-// 用 textContent 拼接文件夹名，避免文件夹名里的特殊字符破坏结构
-function confirmSubfolders(folderName) {
+// 子文件夹提醒弹窗：仅提示「您的文件夹包含子文件夹」，点「确认」后回到主页。
+// 不加载、不处理，避免「拖了没反应」；用 textContent 拼文案，避免特殊字符破坏结构。
+function noticeSubfolders(folderName) {
   return new Promise(resolve => {
     const msg = els.subModalMsg;
     msg.textContent = '「';
     const s = document.createElement('strong');
     s.textContent = folderName;
     msg.appendChild(s);
-    msg.appendChild(document.createTextNode('」里面还有子文件夹。是否把子文件夹里的文件也一起处理？'));
+    msg.appendChild(document.createTextNode('」包含子文件夹。'));
+    els.subModalHint.textContent =
+      '本工具按文件夹逐层处理文件。如需处理子文件夹里的文件，请勾选「包含子文件夹」后重新选择。';
     els.subModal.hidden = false;
-    const close = result => {
+    const close = () => {
       els.subModal.hidden = true;
-      els.subIncludeBtn.removeEventListener('click', onInclude);
-      els.subTopBtn.removeEventListener('click', onTop);
+      els.subConfirmBtn.removeEventListener('click', onConfirm);
       document.removeEventListener('keydown', onKey);
-      resolve(result);
+      resolve();
     };
-    const onInclude = () => close(true);
-    const onTop = () => close(false);
-    const onKey = e => { if (e.key === 'Escape') close(false); };
-    els.subIncludeBtn.addEventListener('click', onInclude);
-    els.subTopBtn.addEventListener('click', onTop);
+    const onConfirm = () => close();
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    els.subConfirmBtn.addEventListener('click', onConfirm);
     document.addEventListener('keydown', onKey);
   });
 }
 
-// 统一加载入口：先判断目录是否含子文件夹，必要时弹出确认，再交给 loadFromHandle
+// 统一加载入口：若目录含子文件夹且未勾选「包含子文件夹」，则弹提醒并回到主页；
+// 否则正常交给 loadFromHandle 处理（含子文件夹模式由复选框决定）。
 async function loadFolder(handle) {
-  let recursive = els.recursive.checked;
-  if (!recursive) {
-    const { fileCount, hasSub } = await scanTopLevel(handle);
+  if (!els.recursive.checked) {
+    const { hasSub } = await scanTopLevel(handle);
     if (hasSub) {
-      if (fileCount === 0) {
-        // 顶层没有任何文件、文件全在子文件夹里 → 直接包含子文件夹，避免「拖了没反应」
-        recursive = true;
-        els.recursive.checked = true;
-        setStatus(`「${handle.name}」顶层没有文件，文件都在子文件夹里，已自动包含子文件夹。`, 'ok');
-      } else {
-        // 顶层也有文件，交给用户决定要不要连子文件夹一起
-        const include = await confirmSubfolders(handle.name);
-        if (include) { recursive = true; els.recursive.checked = true; }
-      }
+      await noticeSubfolders(handle.name);
+      resetTool();   // 确认后回到主页（清空加载、显示拖放区）
+      return;
     }
   }
-  await loadFromHandle(handle, recursive);
+  await loadFromHandle(handle, els.recursive.checked);
 }
 
 function resetTemplate() {

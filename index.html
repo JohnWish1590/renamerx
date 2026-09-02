@@ -201,14 +201,14 @@
   </div>
 </footer>
 
-<!-- 子文件夹确认弹窗：拖入/选择含子文件夹的目录时询问是否一并处理 -->
+<!-- 子文件夹提醒弹窗：拖入/选择含子文件夹的目录时提示，确认后回到主页 -->
 <div id="subModal" class="modal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subModalTitle">
-    <h3 class="modal-title" id="subModalTitle">包含子文件夹</h3>
+    <h3 class="modal-title" id="subModalTitle">提示</h3>
     <p class="modal-msg" id="subModalMsg"></p>
+    <p class="modal-hint" id="subModalHint"></p>
     <div class="modal-actions">
-      <button id="subTopBtn" class="btn" type="button">仅处理顶层文件</button>
-      <button id="subIncludeBtn" class="btn primary" type="button">包含子文件夹</button>
+      <button id="subConfirmBtn" class="btn primary" type="button">确认</button>
     </div>
   </div>
 </div>

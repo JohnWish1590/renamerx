@@ -23,6 +23,7 @@ const elements = {};
 const document = {
   getElementById(id) { return elements[id] ||= new El(id); },
   createElement() { return new El('a'); },
+  createTextNode(t) { return { textContent: t, nodeType: 3 }; },
   querySelectorAll(sel) {
     if (sel === '#busuanzi_value_site_uv') {
       const el = this.getElementById('busuanzi_value_site_uv');
@@ -30,6 +31,8 @@ const document = {
     }
     return [];
   },
+  addEventListener() {},
+  removeEventListener() {},
   body: { appendChild() {} },
 };
 const win = {
@@ -176,6 +179,30 @@ await test('点「一键插入标签」把 <n> 插入模板输入框', async () 
   elements['tagPalette']._fire('click', fakeEvent);
   await sleep(10);
   assert.ok(elements['templateInput'].value === '照片_<n>', '应插入为 照片_<n>，实际=' + elements['templateInput'].value);
+});
+
+// 构造一个「顶层有文件、且含子文件夹」的 fake 文件夹（用于验证子文件夹提醒）
+function fakeDirWithSub() {
+  const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} });
+  const subdir = { kind: 'directory', name: 'sub', values: async function* () {}, getFile: async () => ({ lastModified: 0, size: 0 }) };
+  return {
+    kind: 'directory', name: 'root',
+    values: async function* () { yield mkFile('01.dat'); yield subdir; },
+  };
+}
+
+await test('拖入含子文件夹的目录 → 弹提醒，确认后回到主页（不加载）', async () => {
+  win.isSecureContext = true;
+  win.showDirectoryPicker = async () => fakeDirWithSub();
+  elements['recursive'].checked = false;            // 默认不勾选「包含子文件夹」
+  elements['pickBtn']._fire('click');
+  await sleep(60);                                   // 等 loadFolder → scanTopLevel → 弹窗
+  assert.strictEqual(elements['subModal'].hidden, false, '应弹出「包含子文件夹」提醒');
+  elements['subConfirmBtn']._fire('click');          // 点「确认」
+  await sleep(60);
+  assert.strictEqual(elements['subModal'].hidden, true, '确认后弹窗应关闭');
+  assert.strictEqual(elements['dropzone'].hidden, false, '确认后应回到主页（拖放区可见）');
+  assert.strictEqual(elements['count'].textContent, '未加载文件', '确认后不应加载任何文件');
 });
 
 console.log(`\n通过 ${passed} 项测试` + (process.exitCode ? '（存在失败）' : '，全部通过 ✅'));

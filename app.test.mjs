@@ -38,15 +38,17 @@ const win = {
 };
 const location = { protocol: 'https:' };
 let lastBlob = null;
-const URLmock = {
-  createObjectURL: (b) => { lastBlob = b; return 'blob:x'; },
-  revokeObjectURL() {},
-};
+// 注意：不要整体替换 globalThis.URL。
+// app.js 仅可能用到 URL.createObjectURL / revokeObjectURL；
+// 若把 URL 换成一个普通对象，在带 broker FS shim 的 node 下
+// `instanceof URL` 会因右侧不再是可调用类而崩溃，导致模块加载失败。
+// 这里只给真实的 URL 类补两个静态方法，既满足 app.js 又能保住 instanceof 语义。
+globalThis.URL.createObjectURL = (b) => { lastBlob = b; return 'blob:x'; };
+globalThis.URL.revokeObjectURL = () => {};
 
 globalThis.document = document;
 globalThis.window = win;
 globalThis.location = location;
-globalThis.URL = URLmock;
 
 // fetch mock：模拟自建计数后端 /api/count（测试不联网）
 //   GET  → { count }          读全网真实总数

@@ -195,6 +195,9 @@ await test('拖入含子文件夹的目录 → 弹提醒，确认后回到主页
   win.isSecureContext = true;
   win.showDirectoryPicker = async () => fakeDirWithSub();
   elements['recursive'].checked = false;            // 默认不勾选「包含子文件夹」
+  // 关键：先把弹窗置为「已隐藏」。El 的 hidden 初值就是 false，若不先置 true，
+  // 下面"应弹出"的断言在弹窗根本没显示时也会通过（假阳性，抓不到「弹窗不显示」的回归）。
+  elements['subModal'].hidden = true;
   elements['pickBtn']._fire('click');
   await sleep(60);                                   // 等 loadFolder → scanTopLevel → 弹窗
   assert.strictEqual(elements['subModal'].hidden, false, '应弹出「包含子文件夹」提醒');

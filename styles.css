@@ -108,6 +108,9 @@ main.wrap{padding-bottom:40px;}
 
 /* 子文件夹确认弹窗 */
 .modal{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.45);}
+/* 关键：作者样式 .modal{display:flex} 会盖过 UA 的 [hidden]{display:none}，
+   必须显式用 .modal[hidden] 让 hidden 属性生效，否则弹窗一加载就一直显示 */
+.modal[hidden]{display:none;}
 .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);max-width:440px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 60px -24px rgba(15,23,42,.5);}
 .modal-title{margin:0 0 8px;font-size:17px;color:var(--bg-ink);}
 .modal-msg{margin:0 0 8px;font-size:14px;color:var(--muted);line-height:1.7;}

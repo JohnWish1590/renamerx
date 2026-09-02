@@ -106,6 +106,14 @@ main.wrap{padding-bottom:40px;}
 .toast.show{opacity:1;transform:translateY(-50%);}
 .toast.err{background:var(--danger);border-color:var(--danger);box-shadow:0 10px 26px -10px rgba(220,38,38,.4);}
 
+/* 子文件夹确认弹窗 */
+.modal{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.45);}
+.modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);max-width:440px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 60px -24px rgba(15,23,42,.5);}
+.modal-title{margin:0 0 8px;font-size:17px;color:var(--bg-ink);}
+.modal-msg{margin:0 0 18px;font-size:14px;color:var(--muted);line-height:1.7;}
+.modal-msg strong{color:var(--accent-ink);word-break:break-all;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+
 /* blocks */
 .block{padding:18px 0 6px;}
 .block.soft{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px;margin:18px 0;}

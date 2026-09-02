@@ -28,6 +28,10 @@ const els = {
   tagPalette: document.getElementById('tagPalette'),
   toast: document.getElementById('toast'),
   selectAll: document.getElementById('selectAll'),
+  subModal: document.getElementById('subModal'),
+  subModalMsg: document.getElementById('subModalMsg'),
+  subIncludeBtn: document.getElementById('subIncludeBtn'),
+  subTopBtn: document.getElementById('subTopBtn'),
 };
 
 const state = {
@@ -75,6 +79,67 @@ async function collect(dirHandle, relParts, recursive) {
       await collect(entry, relParts.concat(entry.name), recursive);
     }
   }
+}
+
+// 扫描目录顶层：统计文件数、判断是否含子文件夹（只读一层，开销极小）
+async function scanTopLevel(dirHandle) {
+  let fileCount = 0, hasSub = false;
+  try {
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') fileCount++;
+      else if (entry.kind === 'directory') hasSub = true;
+      if (fileCount && hasSub) break;
+    }
+  } catch (_) { /* 无法读取时当作无子文件夹，照常加载 */ }
+  return { fileCount, hasSub };
+}
+
+// 子文件夹确认弹窗：返回 Promise<boolean>（true=包含子文件夹一起处理）
+// 用 textContent 拼接文件夹名，避免文件夹名里的特殊字符破坏结构
+function confirmSubfolders(folderName) {
+  return new Promise(resolve => {
+    const msg = els.subModalMsg;
+    msg.textContent = '「';
+    const s = document.createElement('strong');
+    s.textContent = folderName;
+    msg.appendChild(s);
+    msg.appendChild(document.createTextNode('」里面还有子文件夹。是否把子文件夹里的文件也一起处理？'));
+    els.subModal.hidden = false;
+    const close = result => {
+      els.subModal.hidden = true;
+      els.subIncludeBtn.removeEventListener('click', onInclude);
+      els.subTopBtn.removeEventListener('click', onTop);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onInclude = () => close(true);
+    const onTop = () => close(false);
+    const onKey = e => { if (e.key === 'Escape') close(false); };
+    els.subIncludeBtn.addEventListener('click', onInclude);
+    els.subTopBtn.addEventListener('click', onTop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+// 统一加载入口：先判断目录是否含子文件夹，必要时弹出确认，再交给 loadFromHandle
+async function loadFolder(handle) {
+  let recursive = els.recursive.checked;
+  if (!recursive) {
+    const { fileCount, hasSub } = await scanTopLevel(handle);
+    if (hasSub) {
+      if (fileCount === 0) {
+        // 顶层没有任何文件、文件全在子文件夹里 → 直接包含子文件夹，避免「拖了没反应」
+        recursive = true;
+        els.recursive.checked = true;
+        setStatus(`「${handle.name}」顶层没有文件，文件都在子文件夹里，已自动包含子文件夹。`, 'ok');
+      } else {
+        // 顶层也有文件，交给用户决定要不要连子文件夹一起
+        const include = await confirmSubfolders(handle.name);
+        if (include) { recursive = true; els.recursive.checked = true; }
+      }
+    }
+  }
+  await loadFromHandle(handle, recursive);
 }
 
 function resetTemplate() {
@@ -490,7 +555,7 @@ async function pickFolder() {
   }
   try {
     const handle = await window.showDirectoryPicker();
-    await loadFromHandle(handle, els.recursive.checked);
+    await loadFolder(handle);
   } catch (e) {
     if (e.name !== 'AbortError') setStatus(`选择失败：${e.message}`, 'err');
   }
@@ -592,7 +657,7 @@ els.dropzone.addEventListener('drop', async e => {
   let handle = null;
   try { handle = await item.getAsFileSystemHandle(); } catch (_) {}
   if (handle && handle.kind === 'directory') {
-    await loadFromHandle(handle, els.recursive.checked);
+    await loadFolder(handle);
   } else {
     setStatus('请拖入一个文件夹。', 'err');
   }

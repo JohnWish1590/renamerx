@@ -13,4 +13,6 @@
 //   - 顺带记录去标识化的使用日志（时间 / 国家-城市 / 浏览器 / 数量），可在 /api/stats 查看。
 //
 // 部署后请把下面的地址换成你自己的 Vercel 域名（Vercel 项目 → Domains 里能看到）。
-export const COUNT_API = 'https://renamerx-byohg4s77-investment-biubiubius-projects.vercel.app/api/count';
+// 注意：早期拿到的 renamerx-byohg4s77-…vercel.app 是已失效的旧域名（指向旧构建、一直 500），
+// 当前有效生产域名为 renamerx-investment-biubiubius-projects.vercel.app（alias 已指向 c0c1519 构建）。
+export const COUNT_API = 'https://renamerx-investment-biubiubius-projects.vercel.app/api/count';

@@ -1,6 +1,6 @@
 {
   "name": "renamerx",
-  "version": "1.0.0",
+  "version": "1.5.2",
   "description": "RenamerX — 开源批量重命名工具（SmanRenamer 的继任者）。模板式重命名 + 标签系统。",
   "type": "module",
   "scripts": {
@@ -8,5 +8,14 @@
     "serve": "node server.mjs"
   },
   "license": "MIT",
-  "keywords": ["rename", "batch-rename", "file-renamer", "files", "utility"]
+  "keywords": [
+    "rename",
+    "batch-rename",
+    "file-renamer",
+    "files",
+    "utility"
+  ],
+  "dependencies": {
+    "@upstash/redis": "^1.38.3"
+  }
 }

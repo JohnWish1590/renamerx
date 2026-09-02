@@ -1,32 +1,16 @@
-// RenamerX 计数触发器配置
+// RenamerX 计数接口配置
 //
-// ⚠️ 安全说明：此 token 会出现在公开仓库的前端代码中，因此【绝不能】用你的主账号
-// PAT（ghp_...）。必须到 GitHub 创建一个「fine-grained PAT」：
-//   1. 打开 https://github.com/settings/tokens?type=beta
-//   2. 仅勾选仓库 JohnWish1590/renamerx
-//   3. Permissions 里只给 Repository permissions → Actions: Read and write
-//      （仅用于触发 workflow_dispatch；不要给 Contents 写权限，写文件由 Action 的
-//       GITHUB_TOKEN 完成，前端 token 拿不到）
-//   4. 生成后把值粘到下面。
-// 这样即使 token 被看到，最坏情况也只是被人反复触发你的 workflow 刷计数器，
-// 动不了你其他仓库或源码。
+// ✅ 安全说明（2026-09-02 起）：本文件【不再保存任何密钥 / 令牌】。
 //
-// 🔒 混淆存储：GitHub 的 Push Protection（密钥扫描）会拦截明文 `github_pat_...`，
-// 因此这里把 token 拆成不连续的短片段、运行时拼接。源码里不再出现完整的
-// `github_pat_` 连续串，Push Protection 就不会拦截本次提交。
-// （注意：这只能绕过「扫描拦截」，并非加密——任何看源码的人仍能拼出 token。
-// 但因该 token 仅限单仓库 Actions:write，泄露后果只是被人刷计数器，可接受。）
-export const GH_DISPATCH_TOKEN = [
-  'github',      // ← 配合下一段拼成 github_pat_ 前缀
-  '_pat_',
-  '11AY7SXMA0my',
-  'tut8okcloO_',
-  'BNhOWERfbjL4X',
-  'yv6sc2xEmH99',
-  'nWOBf0yEEBUZ',
-  'mLeXGaG7LOHM',
-  'GEyClpZJjo',
-].join('');
-
-// 触发 dispatch 的目标仓库
-export const GH_REPO = 'JohnWish1590/renamerx';
+// 历史教训：此前这里用「拆段数组拼接」存放 GitHub fine-grained PAT，以为能防住，
+// 但混淆 ≠ 加密——任何人打开 DevTools 看一眼 config.js 就能拼出完整 token，
+// 随后被自动化 bot 扫到，被人反复调用 API 把计数从 123 刷到 12555。
+// 教训：只要凭据放在前端，就一定能被拿走。GitHub Actions 又拿不到客户端 IP，无法限流。
+//
+// 现在的架构：计数后端部署在 Vercel（Edge Function + KV），
+//   - 凭据只存在于 Vercel 的环境变量里，源码里一个密钥都没有；
+//   - 接口侧能拿到客户端 IP，按 IP 限流（每小时 500 / 每天 2000），超限直接丢弃；
+//   - 顺带记录去标识化的使用日志（时间 / 国家-城市 / 浏览器 / 数量），可在 /api/stats 查看。
+//
+// 部署后请把下面的地址换成你自己的 Vercel 域名（Vercel 项目 → Domains 里能看到）。
+export const COUNT_API = 'https://renamerx-byohg4s77-investment-biubiubius-projects.vercel.app/api/count';

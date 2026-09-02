@@ -48,10 +48,24 @@ globalThis.window = win;
 globalThis.location = location;
 globalThis.URL = URLmock;
 
-// fetch mock：返回仓库 count.json（测试不联网）
-globalThis.fetch = async (url) => {
-  if (typeof url === 'string' && url.includes('count.json')) {
-    return { ok: true, json: async () => ({ renamed: 0 }) };
+// fetch mock：模拟自建计数后端 /api/count（测试不联网）
+//   GET  → { count }          读全网真实总数
+//   POST → { count }          上报 +N 并返回累加后的真值
+//   force429 = true 时模拟被限流：HTTP 429，但仍返回真值（前端不应跳变）
+const countServer = { value: 123, force429: false, posts: [] };
+globalThis.__countServer = countServer;
+globalThis.fetch = async (url, opt) => {
+  if (typeof url === 'string' && url.includes('/api/count')) {
+    if (opt && opt.method === 'POST') {
+      const body = JSON.parse(opt.body || '{}');
+      countServer.posts.push(body.n);
+      if (!countServer.force429) countServer.value += body.n;
+    }
+    return {
+      ok: !countServer.force429,
+      status: countServer.force429 ? 429 : 200,
+      json: async () => ({ count: countServer.value }),
+    };
   }
   return { ok: false, json: async () => ({}) };
 };
@@ -65,6 +79,30 @@ function test(name, fn) {
 
 await import('./app.js');
 
+// 辅助：搭一个支持 File System Access 的 fake 文件夹（n 个 01.dat…）
+function fakeDir(n) {
+  const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} });
+  const entries = [];
+  for (let i = 1; i <= n; i++) entries.push(mkFile(String(i).padStart(2, '0') + '.dat'));
+  return {
+    kind: 'directory', name: 'root',
+    values: async function* () { for (const e of entries) yield e; },
+    getDirectoryHandle: async () => ({ kind: 'directory', getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} }),
+  };
+}
+// 走完整流程：选文件夹 → 填模板 → 点应用改名
+async function pickAndRename(n, template) {
+  win.isSecureContext = true;
+  win.showDirectoryPicker = async () => fakeDir(n);
+  elements['pickBtn']._fire('click');
+  await sleep(50);
+  elements['templateInput'].value = template;
+  elements['templateInput']._fire('input');
+  await sleep(200);
+  elements['applyBtn']._fire('click');
+  await sleep(50);
+}
+
 // 辅助：构造 fake 文件
 function fakeFiles(prefix, n) {
   const arr = [];
@@ -76,6 +114,12 @@ function fakeFiles(prefix, n) {
 }
 
 console.log('app.js 端到端');
+await test('计数：加载即读取服务端真值（123）', async () => {
+  await sleep(30);
+  assert.strictEqual(elements['renamed-count'].textContent, '123',
+    '应显示服务端返回的 123，实际=' + elements['renamed-count'].textContent);
+});
+
 await test('兼容模式加载 + 预览 E01..E07', async () => {
   const dir = elements['dirInput'];
   dir.files = fakeFiles('vid', 7);
@@ -89,28 +133,28 @@ await test('兼容模式加载 + 预览 E01..E07', async () => {
 });
 
 await test('File System Access：真实改名', async () => {
-  // 准备一个 fake 文件夹（3 个文件，支持 move / getDirectoryHandle）
-  const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} });
-  const entries = [mkFile('01.dat'), mkFile('02.dat'), mkFile('03.dat')];
-  const root = {
-    kind: 'directory', name: 'root',
-    values: async function* () { for (const e of entries) yield e; },
-    getDirectoryHandle: async () => ({ kind: 'directory', getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} }),
-  };
-  win.isSecureContext = true;
-  win.showDirectoryPicker = async () => root;
-
-  elements['pickBtn']._fire('click');         // loadFromHandle(root, false)
-  await sleep(50);
-  elements['templateInput'].value = '系列.<n>.dat';
-  elements['templateInput']._fire('input');
-  await sleep(200);
-  assert.ok(elements['previewBody'].innerHTML.includes('系列.3.dat'), '预览应含 系列.3.dat');
-
-  elements['applyBtn']._fire('click');        // applyRenames
-  await sleep(50);
+  await pickAndRename(3, '系列.<n>.dat');
   const afterHtml = elements['previewBody'].innerHTML;
   assert.ok(afterHtml.includes('系列.1.dat') && afterHtml.includes('系列.3.dat'), '应用后预览应为新名');
+});
+
+await test('计数：改名 3 个 → POST 上报 +3 并收敛到服务端真值 126', async () => {
+  await sleep(30);
+  assert.deepStrictEqual(countServer.posts, [3], '应 POST 一次，n=3，实际=' + JSON.stringify(countServer.posts));
+  assert.strictEqual(countServer.value, 126, '服务端应累加到 126');
+  assert.strictEqual(elements['renamed-count'].textContent, '126',
+    '应以服务端返回值为准，实际=' + elements['renamed-count'].textContent);
+});
+
+await test('计数：被限流（429）时以服务端真值为准，界面不跳变', async () => {
+  countServer.force429 = true;   // 模拟该 IP 已超限：服务端不累加，但仍返回真值
+  await pickAndRename(2, '限流.<n>.dat');
+  await sleep(30);
+  assert.deepStrictEqual(countServer.posts, [3, 2], '仍应上报（服务端自行丢弃）');
+  assert.strictEqual(countServer.value, 126, '超限不改计数');
+  assert.strictEqual(elements['renamed-count'].textContent, '126',
+    '应回落到服务端真值 126 而非停留乐观值 128，实际=' + elements['renamed-count'].textContent);
+  countServer.force429 = false;
 });
 
 await test('file:// 下「选择文件夹」按钮应提示而非崩溃', async () => {

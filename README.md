@@ -110,28 +110,34 @@ node server.mjs          # 然后打开 http://localhost:5173
 
 页面顶部统计条显示两个数字：
 
-1. **已服务 X 位用户** —— 来自 **不蒜子（busuanzi）**，真实全网共享访客统计，无需注册。
-2. **已重命名 Y 个文件** —— **真·全网共享**（由 GitHub Actions 累加 `count.json`，所有用户累加同一个总数）。
+1. **已服务 X 位用户** —— 来自 **不蒜子（busuanzi）**，真实全网共享访客统计（按 IP+UA 去重），无需注册。
+2. **已重命名 Y 个文件** —— **真·全网共享**，由自建的 **Vercel Edge Function + Upstash Redis** 累加。
 
-> ✅ **当前真实状态（自 2026-08-11 起已上线）**：
-> 「已重命名」的真共享计数**已正式上线并实测跑通**（前端触发 → Action +N → 写回 `main` → 全网可读）。
-> 触发器 token 以**「拆段拼接」混淆方式**存入 `config.js`，绕开了 GitHub Push Protection 的密钥扫描拦截，
-> 因此无需任何「放行链接」即可正常推送。
->
-> 前端显示逻辑为 **`max(全网共享值, 本机累计)`**：
-> - 全网共享值 = `count.json` 里所有用户累加的真实总数（换浏览器也互通）。
-> - 本机累计 = 你这台浏览器 `localStorage` 里自己改过的文件数（刷新保留，作为保底）。
-> 两者取较大者显示，所以你改了几个就 +N，刷新不丢，且能跨浏览器共享总数。
+> ⚠️ **安全复盘（2026-09-02）**：旧架构（v1.4.x–v1.5.1）把 GitHub fine-grained PAT **硬编码在前端 `config.js`**
+> （拆段混淆 ≠ 加密，DevTools 里 `.join('')` 即可还原）。该 token 自 2026-08-11 起公开在仓库里，8/27 被自动化 bot 扫到，
+> 被人反复调用 API 把计数从真实的 `123` 刷到 `12555`——**线上那个 `12555` 是假的**。GitHub Actions 拿不到客户端 IP，
+> 无法限流，所以「凭据放在前端」是架构死结。现已彻底迁移到 **Vercel 后端**，前端不再有任何密钥。
 
-### 计数架构（已落地并上线）
-- `count.json`：仓库根目录存 `{ "renamed": N }` 真实总数（基线为 `0`，由改名动作累加）。
-- `.github/workflows/bump-count.yml`：监听 `workflow_dispatch`（带 `inputs.count`），
-  用自带的 `GITHUB_TOKEN` 读 `count.json`、+N、写回 `main`。`count < 0` 时按 `0` 处理（允许 `0`，不污染计数）。
-- `config.js`：`GH_DISPATCH_TOKEN`（**仅限 `JohnWish1590/renamerx` 单仓库 `Actions: Read and write` 的
-  fine-grained PAT**，绝不能用主账号 token）——以拆段数组 `['github','_pat_',...].join('')` 形式存储，
-  源码中不出现完整 `github_pat_…` 连续串，从而绕过 Push Protection。
-- `app.js`：改名成功后本机 `localStorage` 立即 +N 并持久化（刷新后正确）+ `triggerBump()` 触发 Action；
-  打开页面时从 `raw.githubusercontent.com/.../main/count.json` 只读真实总数，以 `max(共享值, 本机累计)` 为基准。
+### 计数架构（v1.5.2 起 · Vercel Edge Function + Upstash Redis）
+
+- **前端 `app.js`**：改名成功后 `fetch(COUNT_API)` 上报 `{n}`（GET 读计数 / POST 累加），后端**同步返回累加后的真实总数**
+  （200 或 429 都返回真值），前端直接收敛到真值——**不再轮询、刷新不再回退**。
+- **`api/_lib.js`**：公共库。用 `@upstash/redis`（REST 客户端，Edge 可用）连 Redis；按 IP 限流
+  （单 IP 每小时 ≤500、每天 ≤2000，超限直接丢弃并报 429）；只存 IP 的 SHA-256 哈希前 8 位（**不落明文 IP**，隐私友好）；
+  顺带写去标识化使用日志（时间 / 国家-城市 / 浏览器 / 本次数量）。
+- **`api/count.js`**：计数接口（`runtime: 'edge'`）。GET 读、POST 累加并限流；**来源白名单校验**（仅放行
+  `johnwish1590.github.io` 等前端域名，别人的网页/脚本跨域调用直接 403）。
+- **`api/stats.js`**：带密码的统计页（`/api/stats?pw=你的STATS_PASSWORD`），展示累计重命名、今日访客、来源城市 Top10、
+  最近 50 次改名记录——**正是「看看是不是真人在用」的入口**。
+- **`config.js`**：**不再保存任何密钥**，只导出 `COUNT_API`（部署后改成你自己的 Vercel 域名）。
+- **环境变量（Vercel 项目 Settings → Environment Variables）**：
+  `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`（装 Upstash Redis 集成自动注入）、
+  `STATS_PASSWORD`（统计页密码）、`IP_SALT`（哈希加盐）。
+- **计数基线**：真共享值回填为 `123`（2026-09-02 核查后的真实累计）。
+
+> 🗑️ **已停用的旧文件**：`.github/workflows/bump-count.yml`（GitHub Actions 累加 `count.json`）与根目录 `count.json`
+> 在 v1.5.2 起不再被读取——前者正是旧架构刷量漏洞的入口。两者保留在仓库里无害，但新后端完全不依赖它们；
+> 想彻底干净可删除，不影响线上计数。部署步骤见仓库 `DEPLOY.md`。
 
 ---
 
@@ -171,8 +177,7 @@ node server.mjs          # 然后打开 http://localhost:5173
   本机 localStorage 在每个浏览器里各自累计，于是 A 浏览器改过 4 个、B 浏览器没改过，两者显示的数字就不一样。
 - **改为「count.json 唯一真相」**：显示数字 = 直接读 `raw.githubusercontent.com` 上的共享 `count.json`，本地**不再用 localStorage 累积**，
   因此任何人、任何浏览器打开都看到同一个数字。
-- 改名后的即时反馈：点「应用重命名」先**乐观**显示 `当前共享值 + N`，同时触发 Action 让全网 +N；约 5 秒后 GitHub Action 把新数写回 `count.json`，
-  前端再读一次**回正**，所有浏览器最终收敛到同一真实总数。
+- 改名后的即时反馈：点「应用重命名」先**乐观**显示 `当前共享值 + N`（即时反馈），同时触发 Action 让全网 +N；随后**轮询** `count.json`（最多 2 分钟、每 4 秒一次，读取带 `?t=时间戳` 破除 CDN 缓存）直到云端真实追上乐观值再锁定，所有浏览器最终收敛到同一真实总数。若 2 分钟内云端仍未追上（如 Action 失败），则以乐观值为准、下次加载再校正。
 - ✅ `count.json` 基线已回填为 `100`（用户确认真实历史总数，2026-08-12 提交 `e1d44a1`）。所有浏览器现在显示同一个正确数字，改名后在此基础上继续累加。
 
 ### v1.5.0 · 2026-08-12 · 选择性重命名（预览表复选框）
@@ -182,6 +187,22 @@ node server.mjs          # 然后打开 http://localhost:5173
 - **模板来源跟随「第一个勾选的文件」**：取消勾选排最前的文件后，模板自动改用下一个勾选文件的名字作基准（未手动编辑时）。
 - **编号只在勾选文件内连续排**：勾选 4 个文件就自动编 01~04，不会把未勾选文件也算进去。
 - 安全护栏：若勾选文件的新名字与某个未勾选文件的现有名字相同，预览即给出「重名冲突」警告并阻止应用，避免改名时撞名失败。
+
+### v1.5.1 · 2026-08-13 · 修复「改名后计数回退成旧值」
+- **问题**：v1.4.3 的「5 秒一次性回正」读 `count.json` 太早——GitHub Action 从触发到提交推送通常要 20~60 秒，5 秒时读到的还是旧值，于是乐观显示的 `共享值 + N` 被硬改回旧数；刷新时若 CDN 未刷新还会看到缓存旧值（用户实测：改名后闪 108，刷新变回 100）。
+- **修复**：改为**轮询**直到云端真实追上乐观值（最多等 2 分钟）才锁定；读取 `count.json` 加 `?t=时间戳` 破除 Fastly CDN 缓存，确保拿到最新计数。现在每次改名后数字稳定停在真实总数，刷新也一致。
+- 计数本身始终准确（Action 真累加，用户实测 100→112 精确对上 12 个文件），本次只修「显示时序」，不影响真实累计。
+
+### v1.5.2 · 2026-09-02 · 计数后端迁移到 Vercel（彻底止血刷量漏洞）
+- **背景**：v1.4.x–v1.5.1 把 GitHub fine-grained PAT 硬编码在前端，混淆 ≠ 加密，被 bot 扫到后把计数从真实 `123` 刷到 `12555`（线上 `12555` 为假）。GitHub Actions 拿不到客户端 IP 无法限流，根因是「凭据在前端」的架构死结。
+- **架构重做**：计数后端迁到 **Vercel Edge Function + Upstash Redis**（GitHub 账号直接登录即可，无需注册新服务）。
+  - `config.js` **彻底删除全部密钥**，只留 `COUNT_API` 域名导出。
+  - 新增 `api/_lib.js`（限流 + IP 哈希 + 日志）、`api/count.js`（读/累加计数，按 IP 限流、来源白名单）、`api/stats.js`（带密码的统计页，看来源城市/设备/频率）。
+  - 前端 `app.js` 改为 `fetch(COUNT_API)` 上报 +N，后端同步返回真值，**不再轮询、「刷新回退」bug 自然消失**。
+  - 按 IP 限流（每小时 ≤500、每天 ≤2000），超限丢弃但返回真值，界面不跳变；只存 IP 哈希前 8 位，不落明文 IP。
+- **测试**：后端补齐 11 项 API 测试（限流/计数/来源校验全绿），全仓测试由 38 项升至 **52 项**。
+- 📌 **说明**：v1.5.1（2026-08-13 的「轮询修复」）**实际从未上线**——当时 NAS 副本 `.git` 对象库损坏导致推送中断，线上仍是旧版「5 秒一次性回正」。本版已用「后端同步返回真值」彻底替代轮询方案。
+- 配套 `DEPLOY.md` 给出 Vercel + Upstash Redis 的完整部署与「申请实例」步骤。
 
 ### v1.3.0 · 2026-07-28 · 真共享计数 + 极简 UI 收尾
 - 新增 **GitHub Actions 真共享「已重命名」计数**架构（`count.json` + `bump-count.yml` + `config.js` + 前端触发/读取），
@@ -254,11 +275,13 @@ node server.mjs          # 然后打开 http://localhost:5173
    - 若 push 报 `non-fast-forward`，先 `git fetch origin main && git merge FETCH_HEAD`（GitHub Action 会往 main 写 count.json，
      可能和本地冲突，解决 count.json 冲突即可）。
 
-6. **🟢 GitHub Push Protection（密钥扫描）——已解决**：
-   把 fine-grained token 明文写进公开前端源码 `config.js` 会被 GitHub 拦截。已通过在 `config.js` 中
-   **「拆段数组拼接」**（`['github','_pat_',...].join('')`）存储绕过：源码不出现完整的 `github_pat_…` 连续串，
-   Push Protection 不再报警，`git push` 直接成功，**无需任何 unblock / 放行链接**。
-   （注意：这仅绕过「扫描拦截」，token 仍可被看源码的人拼出；因该 token 仅限单仓库 Actions:write，泄露后果仅限被刷计数器，可接受。）
+6. **🔴 任何密钥都不要放进前端源码（2026-09-02 用真金白银买的教训）**：
+   曾把 GitHub fine-grained PAT 以「拆段数组拼接」（`['github','_pat_',...].join('')`）存进公开前端 `config.js`，
+   以为能绕过 Push Protection（密钥扫描）。当时确实绕过了扫描、push 成功，**但这只是「扫描拦截」层面的绕过，
+   不是「安全」**——任何人打开 DevTools 看一眼就能拼出完整 token。该 token 自 2026-08-11 起暴露在公开仓库，
+   8/27 被自动化 bot 扫到，被人反复调用把计数从真实 `123` 刷到 `12555`。GitHub Actions 拿不到客户端 IP，无法限流。
+   **结论**：只要凭据放在前端，就一定能被拿走、被刷。凡是要「写计数 / 调 API / 鉴权」的能力，
+   一律放服务端（Vercel Edge Function + KV/Redis），前端只持有一个无权限的接口地址。
 
 ---
 
@@ -289,12 +312,12 @@ node server.mjs          # 然后打开 http://localhost:5173
 重命名核心算法在 `engine.js`，与界面解耦，可在 Node 中直接测试：
 
 ```bash
-npm test            # 运行 engine / scriptgen / integration / app 四套测试（共 38 项）
+npm test            # 运行 engine / scriptgen / integration / app / api 五套测试（共 52 项）
 node server.mjs     # 本地静态预览，http://localhost:5173
 node --check app.js # 语法检查
 ```
 
-测试分布：engine 27 + scriptgen 5 + integration 2 + app 4 = **38 项**。
+测试分布：engine 27 + scriptgen 5 + integration 2 + app 7 + api 11 = **52 项**。
 
 ---
 
@@ -313,5 +336,3 @@ node --check app.js # 语法检查
 ## 协议
 
 [MIT](./LICENSE) © Weixin Zhang (JohnWish1590)
-
-Socials: @下一站澳门. DM for inquiries.

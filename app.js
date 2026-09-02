@@ -1,6 +1,6 @@
 // app.js — RenamerX 前端交互逻辑
 import { computeRenames, resolveTargetPath } from './engine.js';
-import { GH_DISPATCH_TOKEN, GH_REPO } from './config.js';
+import { COUNT_API } from './config.js';
 
 const GITHUB_URL = 'https://github.com/JohnWish1590/renamerx';
 const PAGES_URL = 'https://johnwish1590.github.io/renamerx/';
@@ -252,20 +252,22 @@ function setRenamedCountText(n) {
   if (el) el.textContent = fmtNum(n);
 }
 
-const COUNT_RAW = `https://raw.githubusercontent.com/${GH_REPO}/main/count.json`;
-const DISPATCH_URL = `https://api.github.com/repos/${GH_REPO}/actions/workflows/bump-count.yml/dispatches`;
-let sharedCount = null;   // 最近一次读到的全网真实总数（null 表示还没读到）
+// ── 计数后端（v1.5.2 起：Vercel Edge Function + KV）──────────────────────
+// 旧架构：GitHub Actions 累加 count.json，凭据必须硬编码在前端 → 必然泄露 → 必被刷。
+// 新架构：读写全走自建 /api/count，限流在服务端（按 IP），前端不再有任何密钥可偷。
+let sharedCount = null;   // 最近一次从服务端读到的真实总数（null 表示还没读到）
 
+// GET /api/count → { count }
 async function fetchSharedCount() {
   try {
-    const r = await fetch(COUNT_RAW, { cache: 'no-store' });
+    const r = await fetch(COUNT_API, { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
-    return (j && typeof j.renamed === 'number') ? j.renamed : null;
+    return (j && typeof j.count === 'number') ? j.count : null;
   } catch (_) { return null; }
 }
 
-// 加载时：只显示全网共享值（count.json）。这就是所有浏览器统一的那个数字。
+// 加载时：只显示服务端真实值，这是所有浏览器统一的那个数字。
 async function loadRenamedCount() {
   const shared = await fetchSharedCount();
   if (shared !== null) {
@@ -274,36 +276,30 @@ async function loadRenamedCount() {
   }
 }
 
-// 改名成功后：先「乐观」显示 sharedCount + N 给即时反馈，同时触发 Action 让全网 +N；
-// 等 GitHub Action 把新数写回 count.json（约几秒）后，再读一次「回正」，
-// 使所有浏览器最终都收敛到同一个真实总数。
-function addRenamedCount(n) {
+// 改名成功后：先乐观显示 sharedCount + N 给即时反馈，同时 POST 上报 +N。
+// 服务端同步返回累加后的真实总数，直接收敛到它——不再需要轮询，
+// 困扰已久的「刷新后数字回退」bug 随之消失。
+// 被限流（429）或请求失败时同样返回真值，界面不会跳变，下次加载自动校正。
+async function addRenamedCount(n) {
+  if (!n || n <= 0) return;
   const base = sharedCount !== null ? sharedCount : 0;
-  setRenamedCountText(base + n);
-  triggerBump(n);
-  setTimeout(async () => {
-    const shared = await fetchSharedCount();
-    if (shared !== null) {
-      sharedCount = shared;
-      setRenamedCountText(shared);
-    }
-  }, 5000);
-}
-
-// 触发 GitHub Action 累加（需要 fine-grained 限定 token；未配置则不触发）
-async function triggerBump(n) {
-  if (!GH_DISPATCH_TOKEN) return;
+  setRenamedCountText(base + n);      // 乐观显示，先给反馈
   try {
-    await fetch(DISPATCH_URL, {
+    const r = await fetch(COUNT_API, {
       method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + GH_DISPATCH_TOKEN,
-        'Content-Type': 'application/json',
-        Accept: 'application/vnd.github+json',
-      },
-      body: JSON.stringify({ ref: 'main', inputs: { count: String(n) } }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ n }),
     });
-  } catch (_) { /* 触发失败不影响本机显示 */ }
+    const j = await r.json().catch(() => null);
+    if (j && typeof j.count === 'number') {
+      sharedCount = j.count;          // 无论 200 还是 429，都以服务端真值为准
+    } else {
+      sharedCount = base + n;
+    }
+    setRenamedCountText(sharedCount);
+  } catch (_) {
+    sharedCount = base + n;           // 断网等异常：保留乐观值，下次加载校正
+  }
 }
 
 // 不蒜子异步渲染，轮询格式化数字（页脚/统计条都可能出现，统一更新所有同名 id）

@@ -135,7 +135,9 @@ await test('兼容模式加载 + 预览 E01..E07', async () => {
   elements['templateInput']._fire('input');  // 触发防抖渲染
   await sleep(200);
   const html = elements['previewBody'].innerHTML;
-  assert.ok(html.includes('平屋慢生活.E07.mp4'), '预览应包含 E07');
+  const previewText = html.replace(/<[^>]*>/g, '');
+  assert.ok(previewText.includes('平屋慢生活.E07.mp4'), '预览应包含 E07');
+  assert.ok(html.includes('diff-added'), '预览应高亮改动部分');
   assert.ok(elements['applyBtn'].hidden === true, '兼容模式应隐藏直接改名按钮');
 });
 

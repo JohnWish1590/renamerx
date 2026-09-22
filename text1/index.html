@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RenamerX 测试版 · 批量重命名</title>
-  <link rel="stylesheet" href="styles.css?v=text1-2" />
+  <link rel="stylesheet" href="styles.css?v=text1-3" />
 </head>
 <body ondragover="event.preventDefault()" ondrop="event.preventDefault()">
   <header class="site-header">
@@ -131,6 +131,10 @@
             <tbody id="previewBody"></tbody>
           </table>
         </div>
+        <div class="diff-legend" aria-label="预览标记说明">
+          <span class="legend-added">亮色</span> 新增或修改
+          <span class="legend-removed">删除线</span> 删除内容
+        </div>
         <p id="status" class="status" aria-live="polite"></p>
       </section>
     </section>
@@ -169,6 +173,6 @@
     </div>
   </div>
 
-  <script type="module" src="../app.js?v=text1-2"></script>
+  <script type="module" src="../app.js?v=text1-3"></script>
 </body>
 </html>

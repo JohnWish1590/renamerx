@@ -241,12 +241,13 @@ function render() {
     const isSel = f.selected;
     const r = renameMap.get(f);
     const newName = isSel ? r.renamed : f.name;
+    const diff = isSel ? diffFileName(f.name, newName) : null;
     const rowCls = isSel ? '' : ' class="row-unchecked"';
     html += `<tr${rowCls}>
       <td class="col-check"><input type="checkbox" class="row-check" data-idx="${i}" ${isSel ? 'checked' : ''} aria-label="选择 ${escapeHtml(f.name)}" /></td>
       <td class="col-idx">${i + 1}</td>
-      <td class="col-old">${escapeHtml(f.name)}</td>
-      <td class="col-new">${escapeHtml(newName)}</td>
+      <td class="col-old">${diff ? diff.oldHtml : escapeHtml(f.name)}</td>
+      <td class="col-new">${diff ? diff.newHtml : escapeHtml(newName)}</td>
     </tr>`;
   }
   if (sorted.length > MAX_PREVIEW) {
@@ -272,6 +273,61 @@ function render() {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function mergeDiffParts(parts) {
+  const merged = [];
+  for (const part of parts) {
+    if (!part.text) continue;
+    const last = merged[merged.length - 1];
+    if (last && last.changed === part.changed) last.text += part.text;
+    else merged.push({ ...part });
+  }
+  return merged;
+}
+
+function diffFileName(oldName, newName) {
+  if (oldName === newName) {
+    const html = escapeHtml(oldName);
+    return { oldHtml: html, newHtml: html };
+  }
+
+  const oldChars = [...String(oldName)];
+  const newChars = [...String(newName)];
+  const dp = Array.from({ length: oldChars.length + 1 }, () => new Uint16Array(newChars.length + 1));
+  for (let i = oldChars.length - 1; i >= 0; i--) {
+    for (let j = newChars.length - 1; j >= 0; j--) {
+      dp[i][j] = oldChars[i] === newChars[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  const oldParts = [], newParts = [];
+  let i = 0, j = 0;
+  while (i < oldChars.length || j < newChars.length) {
+    if (i < oldChars.length && j < newChars.length && oldChars[i] === newChars[j]) {
+      oldParts.push({ text: oldChars[i], changed: false });
+      newParts.push({ text: newChars[j], changed: false });
+      i++; j++;
+    } else if (i < oldChars.length && (j >= newChars.length || dp[i + 1][j] >= dp[i][j + 1])) {
+      oldParts.push({ text: oldChars[i], changed: true });
+      i++;
+    } else {
+      newParts.push({ text: newChars[j], changed: true });
+      j++;
+    }
+  }
+
+  const render = (parts, className) => mergeDiffParts(parts)
+    .map(part => part.changed
+      ? `<mark class="${className}">${escapeHtml(part.text)}</mark>`
+      : escapeHtml(part.text))
+    .join('');
+  return {
+    oldHtml: render(oldParts, 'diff-removed'),
+    newHtml: render(newParts, 'diff-added'),
+  };
 }
 
 function setStatus(msg, kind) {

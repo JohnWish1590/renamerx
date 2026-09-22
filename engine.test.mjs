@@ -20,6 +20,23 @@ test('分词：单词/分隔符/标签', () => {
 });
 
 console.log('applyToTarget — 变换传播');
+test('影视集数格式变化：S01E01 -> S01.E01 保留每个文件的集数', () => {
+  const files = [
+    { name: 'Show.S01E01.mkv' },
+    { name: 'Show.S01E02.mkv' },
+    { name: 'Show.S01E03.mkv' },
+  ];
+  const res = computeRenames({
+    files,
+    templateOriginal: files[0].name,
+    templateEdited: 'Show.S01.E01.mkv',
+  });
+  assert.deepEqual(res.map(r => r.renamed), [
+    'Show.S01.E01.mkv',
+    'Show.S01.E02.mkv',
+    'Show.S01.E03.mkv',
+  ]);
+});
 test('前缀截断传播：Plan Report 2023 -> P R 2023 套用到 Budget Summary 2024 = B S 2024', () => {
   const O = tokenize('Plan Report 2023', false);
   const E = tokenize('P R 2023', true);

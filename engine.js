@@ -15,6 +15,12 @@ function isWordChar(ch) {
   return /\p{L}|\p{N}/u.test(ch);
 }
 
+function wordCharType(ch) {
+  if (/\p{L}/u.test(ch)) return 'letter';
+  if (/\p{N}/u.test(ch)) return 'number';
+  return 'sep';
+}
+
 // ---------------------------------------------------------------------------
 // 分词
 //   parseTags=true 时，把 <...> 解析为 tag 令牌（仅用于编辑后的模板）
@@ -33,10 +39,11 @@ export function tokenize(text, parseTags = false) {
       }
     }
     const word = isWordChar(text[i]);
+    const type = wordCharType(text[i]);
     let j = i + 1;
     while (j < n) {
       if (parseTags && text[j] === '<') break;
-      if (isWordChar(text[j]) !== word) break;
+      if (isWordChar(text[j]) !== word || (word && wordCharType(text[j]) !== type)) break;
       j++;
     }
     tokens.push({ kind: word ? 'word' : 'sep', text: text.slice(i, j) });

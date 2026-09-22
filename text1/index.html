@@ -9,6 +9,11 @@
 <body ondragover="event.preventDefault()" ondrop="event.preventDefault()">
   <header class="site-header">
     <a class="brand" href="../" aria-label="返回 RenamerX 原页面"><span class="brand-mark">R</span><span>RenamerX</span><small>测试页</small></a>
+    <div class="header-stats" aria-label="使用统计">
+      <span>服务过 <strong id="busuanzi_value_site_uv">—</strong> 位用户</span>
+      <i aria-hidden="true">·</i>
+      <span>已改名 <strong id="renamed-count-top">—</strong> 个文件</span>
+    </div>
     <nav aria-label="页面链接">
       <a href="../">原版</a>
       <a class="nav-github" href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">GitHub <span>↗</span></a>
@@ -139,7 +144,6 @@
 
   <footer>
     <span>RenamerX · 文件只在本机处理</span>
-    <span>已成功改名 <strong id="renamed-count">—</strong> 个文件</span>
   </footer>
 
   <div id="subModal" class="modal" hidden>
@@ -160,6 +164,7 @@
     </div>
   </div>
 
-  <script type="module" src="../app.js?v=text1-7"></script>
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <script type="module" src="../app.js?v=text1-8"></script>
 </body>
 </html>

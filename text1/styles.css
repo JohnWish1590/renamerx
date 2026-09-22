@@ -447,3 +447,20 @@ html[data-theme="dark"] .theme-switcher { border-color: #2a415b; background: #10
 html[data-theme="dark"] .theme-switcher button { color: #839ab5; }
 html[data-theme="dark"] .theme-switcher button:hover { color: #d7efff; background: #172b42; }
 html[data-theme="dark"] .theme-switcher button.active { color: #071522; background: #4fd0ff; }
+
+/* 顶部统计与宽度 */
+.site-header { width: min(1060px, calc(100% - 56px)); }
+.header-stats { display: flex; align-items: baseline; gap: 9px; margin-left: auto; margin-right: 22px; color: #718096; font-size: 11px; white-space: nowrap; }
+.header-stats strong { color: #287fe0; font-size: 15px; font-weight: 750; }
+.header-stats i { color: #b1bdc9; font-style: normal; }
+html[data-theme="dark"] .header-stats { color: #8ea2bb; }
+html[data-theme="dark"] .header-stats strong { color: #4fd0ff; }
+html[data-theme="dark"] .header-stats i { color: #526b85; }
+
+@media (max-width: 900px) {
+  .header-stats { margin-right: 10px; }
+}
+@media (max-width: 760px) {
+  .site-header { width: min(100% - 32px, 1060px); flex-wrap: wrap; height: auto; min-height: 62px; padding-top: 10px; padding-bottom: 10px; }
+  .header-stats { order: 3; width: 100%; justify-content: center; margin: 4px 0 0; }
+}

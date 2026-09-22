@@ -18,6 +18,7 @@ const els = {
   count: document.getElementById('count'),
   reselectBtn: document.getElementById('reselectBtn'),
   renamedCount: document.getElementById('renamed-count'),
+  renamedCountTop: document.getElementById('renamed-count-top'),
   dropzone: document.getElementById('dropzone'),
   templateInput: document.getElementById('templateInput'),
   templateNote: document.getElementById('templateNote'),
@@ -409,8 +410,10 @@ function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 function setRenamedCountText(n) {
-  const el = els.renamedCount || document.getElementById('renamed-count');
-  if (el) el.textContent = fmtNum(n);
+  const text = fmtNum(n);
+  for (const el of [els.renamedCount, els.renamedCountTop]) {
+    if (el) el.textContent = text;
+  }
 }
 
 // ── 计数后端（v1.5.2 起：Vercel Edge Function + KV）──────────────────────

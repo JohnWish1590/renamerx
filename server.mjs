@@ -1,7 +1,7 @@
 // server.mjs — 本地静态服务器（用于在本机预览/调试 RenamerX）
 // 用法：node server.mjs  然后浏览器打开 http://localhost:5173
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
 const ROOT = process.cwd();
@@ -18,7 +18,10 @@ const server = http.createServer(async (req, res) => {
   try {
     let p = decodeURIComponent(req.url.split('?')[0]);
     if (p === '/') p = '/index.html';
-    const filePath = join(ROOT, normalize(p).replace(/^(\.\.[/\\])+/, ''));
+    const candidate = join(ROOT, normalize(p).replace(/^(\.\.[/\\])+/, ''));
+    const filePath = (await stat(candidate)).isDirectory()
+      ? join(candidate, 'index.html')
+      : candidate;
     const data = await readFile(filePath);
     res.writeHead(200, { 'Content-Type': MIME[extname(filePath)] || 'application/octet-stream' });
     res.end(data);

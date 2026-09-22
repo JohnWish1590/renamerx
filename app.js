@@ -32,6 +32,7 @@ const els = {
   subModalMsg: document.getElementById('subModalMsg'),
   subModalHint: document.getElementById('subModalHint'),
   subConfirmBtn: document.getElementById('subConfirmBtn'),
+  dropOverlay: document.getElementById('dropOverlay'),
 };
 
 const state = {
@@ -517,6 +518,10 @@ function showBanner(html) {
 }
 function hideBanner() { els.banner.hidden = true; }
 
+function setDropOverlay(visible) {
+  if (els.dropOverlay) els.dropOverlay.hidden = !visible;
+}
+
 function maybeShowBanner() {
   if (location.protocol === 'file:') {
     showBanner(
@@ -527,13 +532,21 @@ function maybeShowBanner() {
   }
 }
 
-// 全局拦截文件拖拽，阻止浏览器把文件夹当作下载/打开
+// 全页接收文件夹：网页内容的任何位置都可以放下，拖拽框只是视觉提示。
+// 使用捕获阶段，并同时检查 dataTransfer.items，避免浏览器把目录当作导航目标。
+function hasFilePayload(e) {
+  const dt = e && e.dataTransfer;
+  if (!dt) return false;
+  const types = Array.from(dt.types || []);
+  return types.includes('Files') || Boolean(dt.items && dt.items.length);
+}
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
-  window.addEventListener(ev, e => {
-    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
-      e.preventDefault();
-    }
-  });
+  document.addEventListener(ev, e => {
+    if (!hasFilePayload(e)) return;
+    e.preventDefault();
+    if (ev === 'dragenter' || ev === 'dragover') setDropOverlay(true);
+    else if (ev === 'drop' || (ev === 'dragleave' && !e.relatedTarget)) setDropOverlay(false);
+  }, true);
 });
 
 // --------------------------------------------------------------------------
@@ -639,7 +652,10 @@ if (els.selectAll) {
   e.preventDefault(); els.dropzone.classList.remove('drag');
 }));
 els.dropzone.addEventListener('drop', async e => {
-  const item = e.dataTransfer.items && e.dataTransfer.items[0];
+  await handleDroppedItem(e.dataTransfer.items && e.dataTransfer.items[0]);
+});
+
+async function handleDroppedItem(item) {
   if (!item) return;
   if (!window.isSecureContext || !item.getAsFileSystemHandle) {
     showBanner();
@@ -653,6 +669,13 @@ els.dropzone.addEventListener('drop', async e => {
   } else {
     setStatus('请拖入一个文件夹。', 'err');
   }
+}
+
+// 允许用户把文件夹放在网页内容的其他位置；浏览器地址栏不属于网页，无法拦截。
+window.addEventListener('drop', async e => {
+  const target = e.target;
+  if (target && typeof target.closest === 'function' && target.closest('#dropzone')) return;
+  await handleDroppedItem(e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items[0]);
 });
 
 // 兼容模式：用 <input webkitdirectory> 加载文件

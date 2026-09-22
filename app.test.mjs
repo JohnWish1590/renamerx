@@ -21,6 +21,7 @@ class El {
 }
 const elements = {};
 const document = {
+  _l: {},
   getElementById(id) { return elements[id] ||= new El(id); },
   createElement() { return new El('a'); },
   createTextNode(t) { return { textContent: t, nodeType: 3 }; },
@@ -31,8 +32,9 @@ const document = {
     }
     return [];
   },
-  addEventListener() {},
+  addEventListener(t, f) { (this._l[t] ||= []).push(f); },
   removeEventListener() {},
+  _fire(t, e = {}) { (this._l[t] || []).forEach(f => f(e)); },
   body: { appendChild() {} },
 };
 const win = {
@@ -141,6 +143,27 @@ await test('File System Access：真实改名', async () => {
   await pickAndRename(3, '系列.<n>.dat');
   const afterHtml = elements['previewBody'].innerHTML;
   assert.ok(afterHtml.includes('系列.1.dat') && afterHtml.includes('系列.3.dat'), '应用后预览应为新名');
+});
+
+await test('网页任意位置接收文件夹拖放', async () => {
+  location.protocol = 'https:';
+  win.isSecureContext = true;
+  const item = { getAsFileSystemHandle: async () => fakeDir(2) };
+  const event = {
+    dataTransfer: { types: ['Files'], items: [item] },
+    target: document.body,
+    relatedTarget: null,
+    prevented: false,
+    preventDefault() { this.prevented = true; },
+  };
+  document._fire('dragover', event);
+  assert.equal(event.prevented, true, '网页任意位置拖动时应阻止浏览器默认导航');
+  assert.equal(elements['dropOverlay'].hidden, false, '拖动时应显示整页接收提示');
+  document._fire('drop', event);
+  for (const fn of (win._l.drop || [])) await fn(event);
+  await sleep(50);
+  assert.equal(elements['dropOverlay'].hidden, true, '放下后应关闭整页接收提示');
+  assert.ok(elements['previewBody'].innerHTML.includes('01.dat'), '网页任意位置放下后应加载文件');
 });
 
 await test('计数：改名 3 个 → POST 上报 +3 并收敛到服务端真值 126', async () => {

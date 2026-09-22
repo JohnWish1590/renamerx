@@ -542,6 +542,10 @@ function hasFilePayload(e) {
 }
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
   document.addEventListener(ev, e => {
+    if (!e.dataTransfer) return;
+    // 先无条件取消网页默认的文件导航；部分浏览器在 dragover 阶段还不会
+    // 暴露 Files 类型，否则放下系统文件夹时会直接跳到目录索引。
+    if (ev === 'dragover' || ev === 'drop') e.preventDefault();
     if (!hasFilePayload(e)) return;
     e.preventDefault();
     if (ev === 'dragenter' || ev === 'dragover') setDropOverlay(true);

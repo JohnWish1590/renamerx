@@ -12,6 +12,7 @@ import {
   clientIp,
   hashIp,
   getCount,
+  recordUser,
   bumpCount,
   json,
   corsHeaders,
@@ -39,7 +40,12 @@ export default async function handler(req) {
 
   try {
     if (req.method === 'GET') {
-      return json({ count: await getCount() }, 200, origin);
+      const ipHash = await hashIp(clientIp(req));
+      const [count, users] = await Promise.all([
+        getCount(),
+        recordUser(ipHash),
+      ]);
+      return json({ count, users }, 200, origin);
     }
 
     if (req.method === 'POST') {

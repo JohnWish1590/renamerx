@@ -19,6 +19,7 @@ const els = {
   reselectBtn: document.getElementById('reselectBtn'),
   renamedCount: document.getElementById('renamed-count'),
   renamedCountTop: document.getElementById('renamed-count-top'),
+  userCount: document.getElementById('busuanzi_value_site_uv'),
   dropzone: document.getElementById('dropzone'),
   templateInput: document.getElementById('templateInput'),
   templateNote: document.getElementById('templateNote'),
@@ -416,18 +417,23 @@ function setRenamedCountText(n) {
   }
 }
 
+function setUserCountText(n) {
+  if (els.userCount && Number.isFinite(n)) els.userCount.textContent = fmtNum(n);
+}
+
 // ── 计数后端（v1.5.2 起：Vercel Edge Function + KV）──────────────────────
 // 旧架构：GitHub Actions 累加 count.json，凭据必须硬编码在前端 → 必然泄露 → 必被刷。
 // 新架构：读写全走自建 /api/count，限流在服务端（按 IP），前端不再有任何密钥可偷。
 let sharedCount = null;   // 最近一次从服务端读到的真实总数（null 表示还没读到）
 
-// GET /api/count → { count }
+// GET /api/count → { count, users }
 async function fetchSharedCount() {
   try {
     const r = await fetch(COUNT_API, { cache: 'no-store' });
     if (!r.ok) return null;
     const j = await r.json();
-    return (j && typeof j.count === 'number') ? j.count : null;
+    if (!j || typeof j.count !== 'number') return null;
+    return j;
   } catch (_) { return null; }
 }
 
@@ -435,8 +441,9 @@ async function fetchSharedCount() {
 async function loadRenamedCount() {
   const shared = await fetchSharedCount();
   if (shared !== null) {
-    sharedCount = shared;
-    setRenamedCountText(shared);
+    sharedCount = shared.count;
+    setRenamedCountText(shared.count);
+    setUserCountText(shared.users);
   }
 }
 

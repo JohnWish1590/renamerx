@@ -163,6 +163,14 @@ export async function getCount() {
   return Number(c) || 0;
 }
 
+// 记录访问过工具的匿名用户，并返回累计去重人数。
+// 只保存 IP 哈希，不保存明文 IP；集合不设置过期时间，作为长期累计人数。
+export async function recordUser(ipHash) {
+  const r = redis();
+  await r.sadd('users', ipHash);
+  return r.scard('users');
+}
+
 // 累加计数 + 记使用日志；超限则原样丢弃（不累加，但把当前真值返回给前端，界面不会跳变）
 export async function bumpCount(n, ipHash, meta) {
   const { day, hour } = timeKeys();

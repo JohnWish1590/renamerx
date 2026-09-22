@@ -73,6 +73,7 @@ await test('GET：首次读取以真实历史值 123 初始化', async () => {
   const r = await call('GET');
   assert.equal(r.status, 200);
   assert.equal(r.body.count, 123);
+  assert.equal(r.body.users, 1, '首次访问应记录 1 位匿名用户');
 });
 
 await test('POST +5：累加并返回新总数 128', async () => {

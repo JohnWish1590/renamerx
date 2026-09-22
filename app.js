@@ -643,6 +643,19 @@ function setDropOverlay(visible) {
   if (els.dropOverlay) els.dropOverlay.hidden = !visible;
 }
 
+// 页脚每次打开随机展示一条《剑来》语录。
+async function loadRandomQuote() {
+  const el = document.getElementById('quoteFooter');
+  if (!el) return;
+  try {
+    const response = await fetch('quotes.json', { cache: 'no-store' });
+    const quotes = await response.json();
+    if (Array.isArray(quotes) && quotes.length) {
+      el.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+    }
+  } catch (_) { /* quotes.json 加载失败时保留默认语录 */ }
+}
+
 function maybeShowBanner() {
   if (location.protocol === 'file:') {
     showBanner(
@@ -819,4 +832,5 @@ initTheme();
 maybeShowBanner();
 loadRenamedCount();
 fmtBusuanzi();
+loadRandomQuote();
 setStatus('请选择文件夹，或直接把文件夹拖到页面上。');

@@ -453,9 +453,13 @@ html[data-theme="dark"] .theme-switcher button.active { color: #071522; backgrou
 .header-stats { display: flex; align-items: baseline; gap: 9px; margin-left: auto; margin-right: 22px; color: #718096; font-size: 11px; white-space: nowrap; }
 .header-stats strong { color: #287fe0; font-size: 15px; font-weight: 750; }
 .header-stats i { color: #b1bdc9; font-style: normal; }
+.benefit-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; color: #5f7894; font-size: 11px; }
+.benefit-row span { padding: 4px 9px; border: 1px solid #d8e5f1; border-radius: 999px; background: #fff; }
 html[data-theme="dark"] .header-stats { color: #8ea2bb; }
 html[data-theme="dark"] .header-stats strong { color: #4fd0ff; }
 html[data-theme="dark"] .header-stats i { color: #526b85; }
+html[data-theme="dark"] .benefit-row { color: #9bb5cd; }
+html[data-theme="dark"] .benefit-row span { border-color: #2a4562; background: #101e30; }
 
 @media (max-width: 900px) {
   .header-stats { margin-right: 10px; }

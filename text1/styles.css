@@ -359,3 +359,10 @@ footer strong { color: #287fe0; }
 .table-wrap { overflow: visible; }
 .rename-step, .preview-step { padding-top: 19px; padding-bottom: 19px; }
 .how-it-works { margin-top: 12px; padding-top: 14px; padding-bottom: 14px; }
+
+/* 页面主容器统一对齐顶部栏 */
+.site-header, main, footer { width: min(1100px, calc(100% - 56px)); }
+
+@media (max-width: 760px) {
+  .site-header, main, footer { width: min(100% - 32px, 1100px); }
+}

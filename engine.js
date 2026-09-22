@@ -191,6 +191,23 @@ function transformWord(etext, origText, targetText) {
   return etext;
 }
 
+// 影视文件名里的 E01 / E02 是集数，不应因为用户把它移动到别处就变成固定文字。
+// 只有当用户没有修改模板中的集数本身时，才把每个目标文件的集数带到新位置。
+function findEpisodeMarker(text) {
+  const match = /([Ee])(\d{1,4})/.exec(String(text));
+  return match ? { text: match[0], number: match[2], index: match.index } : null;
+}
+
+function propagateEpisodeNumber(renamed, templateOriginal, templateEdited, targetName) {
+  const originalEpisode = findEpisodeMarker(templateOriginal);
+  const editedEpisode = findEpisodeMarker(templateEdited);
+  const targetEpisode = findEpisodeMarker(targetName);
+  if (!originalEpisode || !editedEpisode || !targetEpisode) return renamed;
+  if (Number(originalEpisode.number) !== Number(editedEpisode.number)) return renamed;
+  if (editedEpisode.text === targetEpisode.text) return renamed;
+  return String(renamed).replace(editedEpisode.text, targetEpisode.text);
+}
+
 // ---------------------------------------------------------------------------
 // O↔E 对齐：使用加权 LCS，优先对齐完全相同或相互包含的令牌
 //   这样能正确区分「插入的新词」与「被改写的词」，同时识别 "01" -> "E01" 这类前缀/后缀新增
@@ -273,7 +290,8 @@ export function computeRenames({ files, templateOriginal, templateEdited, option
     const f = sorted[i];
     const ctx = { index: i + 1, total: sorted.length, dirParts: f.dirParts || [] };
     const T = tokenize(f.name, false);
-    const renamed = applyToTarget(O, E, T, ctx, rng);
+    let renamed = applyToTarget(O, E, T, ctx, rng);
+    renamed = propagateEpisodeNumber(renamed, templateOriginal, templateEdited, f.name);
     const warnings = [];
     if (/[:*?"<>]/.test(renamed)) warnings.push('包含 Windows 非法字符（: * ? " < >）');
     results.push({ file: f, original: f.name, renamed, relativeKey: (f.dirParts || []).join('/') + '/' + renamed, warnings });

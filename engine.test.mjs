@@ -37,6 +37,21 @@ test('影视集数格式变化：S01E01 -> S01.E01 保留每个文件的集数',
     'Show.S01.E03.mkv',
   ]);
 });
+test('影视集数移动位置：HDR.E01 -> E01.2026 仍保留每个文件的集数', () => {
+  const files = Array.from({ length: 3 }, (_, i) => ({
+    name: `Show.2026.4K.HDR.E${String(i + 1).padStart(2, '0')}.mkv`,
+  }));
+  const res = computeRenames({
+    files,
+    templateOriginal: files[0].name,
+    templateEdited: 'Show.E01.2026.4K.HDR.mkv',
+  });
+  assert.deepEqual(res.map(r => r.renamed), [
+    'Show.E01.2026.4K.HDR.mkv',
+    'Show.E02.2026.4K.HDR.mkv',
+    'Show.E03.2026.4K.HDR.mkv',
+  ]);
+});
 test('前缀截断传播：Plan Report 2023 -> P R 2023 套用到 Budget Summary 2024 = B S 2024', () => {
   const O = tokenize('Plan Report 2023', false);
   const E = tokenize('P R 2023', true);

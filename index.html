@@ -6,6 +6,7 @@
   <meta name="description" content="RenamerX 纯网页批量重命名工具。不用下载安装，文件只在本机处理。" />
   <title>RenamerX · 批量重命名</title>
   <link rel="stylesheet" href="styles.css?v=prod-1" />
+  <script src="language.js"></script>
 </head>
 <body ondragover="event.preventDefault()" ondrop="event.preventDefault()">
   <a class="skip-link" href="#tool">跳到重命名工具</a>
@@ -14,6 +15,7 @@
     <nav aria-label="页面链接">
       <a href="index1.html">旧版页面</a>
       <a href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      <div class="language-switcher" role="group" aria-label="语言"><a id="langZh" class="active" href="./?lang=zh">中文</a><a id="langEn" href="en/?lang=en">EN</a></div>
       <div class="theme-switcher" role="group" aria-label="页面主题">
         <button id="themeLight" type="button" aria-label="浅色主题" title="浅色"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button>
         <button id="themeDark" type="button" aria-label="深色主题" title="深色"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 13.1A9 9 0 0 1 10.9 3.3a9 9 0 1 0 9.8 9.8Z"/></svg></button>
@@ -90,6 +92,6 @@
 
   <div id="subModal" class="modal" hidden><div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subModalTitle"><h2 id="subModalTitle">发现子文件夹</h2><p id="subModalMsg"></p><p id="subModalHint" class="modal-hint"></p><button id="subConfirmBtn" class="primary-button" type="button">知道了</button></div></div>
   <div id="dropOverlay" class="drop-overlay" hidden aria-hidden="true"><div><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><strong>松手，读取文件夹</strong><span>文件只在本机处理</span></div></div>
-  <script type="module" src="app.js?v=prod-1"></script>
+  <script type="module" src="app.js?v=prod-2"></script>
 </body>
 </html>

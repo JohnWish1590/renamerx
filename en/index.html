@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="RenamerX is a browser-based batch file renamer. No download or installation required." />
+  <title>RenamerX · Batch Rename</title>
+  <link rel="stylesheet" href="../styles.css?v=prod-en-1" />
+  <script src="../language.js"></script>
+</head>
+<body ondragover="event.preventDefault()" ondrop="event.preventDefault()">
+  <a class="skip-link" href="#tool">Skip to the renaming tool</a>
+  <header class="site-header">
+    <a class="brand" href="../" aria-label="RenamerX home"><span class="brand-mark" aria-hidden="true">R</span><span>RenamerX</span></a>
+    <nav aria-label="Page links">
+      <a href="../index1.html">Old version</a>
+      <a href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      <div class="language-switcher" role="group" aria-label="Language"><a id="langZh" href="../?lang=zh">中文</a><a id="langEn" class="active" href="./?lang=en">EN</a></div>
+      <div class="theme-switcher" role="group" aria-label="Theme">
+        <button id="themeLight" type="button" aria-label="Light theme" title="Light"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button>
+        <button id="themeDark" type="button" aria-label="Dark theme" title="Dark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 13.1A9 9 0 0 1 10.9 3.3a9 9 0 1 0 9.8 9.8Z"/></svg></button>
+        <button id="themeSystem" type="button" aria-label="Use system theme" title="System"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section id="pageIntro" class="intro" aria-labelledby="page-title">
+      <div class="intro-copy">
+        <h1 id="page-title">Batch rename<span class="title-label">Browser tool</span></h1>
+        <p>Change one name. The rest follow.</p>
+      </div>
+      <div class="benefits" aria-label="Why use RenamerX">
+        <p><strong>No download</strong><span>Open and use</span></p>
+        <p><strong>Rename locally</strong><span>Files stay on your device</span></p>
+        <a href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener"><strong>Open source <span aria-hidden="true">↗</span></strong><span>Plain web, zero dependencies</span></a>
+      </div>
+    </section>
+
+    <div id="banner" class="banner" role="status" hidden></div>
+
+    <section id="tool" class="tool" aria-label="Batch renaming workspace">
+      <div class="tool-bar">
+        <div class="tool-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8m-8 4h5"/></svg><span class="empty-heading">File renaming</span><span id="count" class="file-count" aria-live="polite">Choose a folder</span></div>
+        <button id="reselectBtn" class="quiet-button" type="button" hidden>Choose another folder</button>
+        <span class="local-note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 7v-3"/></svg>Files stay on your device</span>
+      </div>
+
+      <section id="startCard" class="start-card" aria-labelledby="start-title">
+        <div id="dropzone" class="dropzone">
+          <div class="folder-symbol" aria-hidden="true"><svg viewBox="0 0 64 56"><path d="M8 10h18l6 7h23a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4Z"/><path d="M4 24h55M32 40V29m-5 5 5-5 5 5"/></svg></div>
+          <h2 id="start-title">Drop a folder here</h2>
+          <p>The whole page accepts folders, or choose one.</p>
+          <button id="pickBtn" class="primary-button" type="button">Choose folder <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button>
+          <span class="drop-footnote">Preview first. Rename when ready.</span>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="rename-step" aria-labelledby="edit-title">
+          <div class="edit-heading"><label id="edit-title" for="templateInput">Change the first filename to</label><span>The others follow</span></div>
+          <input id="templateInput" name="rename-template" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. Trip_&lt;n&gt;.jpg" aria-describedby="templateNote" />
+          <p id="templateNote" class="template-note"></p>
+          <div id="tagPalette" class="quick-actions" aria-label="Insert naming rules"><span>Insert</span><button type="button" data-tag="&lt;n&gt;">Auto number</button><button type="button" data-tag="&lt;dir&gt;">Folder name</button><button type="button" data-tag="Photos/&lt;n&gt;">Move to subfolder</button></div>
+        </section>
+        <section class="preview-step" aria-labelledby="preview-title">
+          <div class="preview-heading"><div><h2 id="preview-title">Rename preview</h2><span class="preview-hint">Changes are highlighted</span></div><button id="applyBtn" class="primary-button" type="button" disabled>Rename files <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></button></div>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Before and after filenames">
+            <table id="previewTable"><colgroup><col class="check-col"/><col class="number-col"/><col/><col/></colgroup><thead><tr><th scope="col"><input id="selectAll" type="checkbox" checked aria-label="Select or clear all" /></th><th scope="col">#</th><th scope="col">Original name</th><th scope="col">New name</th></tr></thead><tbody id="previewBody"></tbody></table>
+          </div>
+          <div class="diff-legend"><span><mark class="diff-added">Added or changed</mark></span><span><mark class="diff-removed">Removed</mark></span><span class="confirm-note">Your files change only after you confirm.</span></div>
+        </section>
+      </div>
+
+      <div class="tool-bottom">
+        <details class="advanced-options"><summary>More options</summary><div class="advanced-content">
+          <label><input type="checkbox" id="recursive" /> Include subfolders</label>
+          <label for="sort">Sort<select id="sort" name="sort"><option value="name">Name</option><option value="mtime">Modified</option><option value="size">Size</option></select></label>
+          <label for="order">Order<select id="order" name="order"><option value="asc">Ascending</option><option value="desc">Descending</option></select></label>
+          <button id="pickCompatBtn" class="quiet-button" type="button">Compatibility mode (preview only)</button>
+        </div></details>
+        <p id="status" class="status" aria-live="polite"></p>
+      </div>
+      <input id="dirInput" type="file" webkitdirectory multiple hidden />
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <div class="below-tool"><p>Works in Chrome and Edge on desktop</p><div class="usage-stats" aria-label="Usage statistics"><span>Served <strong id="busuanzi_value_site_uv">—</strong> users</span><span>Renamed <strong id="renamed-count-top">—</strong> files</span></div></div>
+  </main>
+
+  <footer><span id="quoteFooter">“The beginning is the most important part of the work.” — Plato</span><span>Contact @下一站澳门</span></footer>
+
+  <div id="subModal" class="modal" hidden><div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subModalTitle"><h2 id="subModalTitle">Subfolder found</h2><p id="subModalMsg"></p><p id="subModalHint" class="modal-hint"></p><button id="subConfirmBtn" class="primary-button" type="button">Got it</button></div></div>
+  <div id="dropOverlay" class="drop-overlay" hidden aria-hidden="true"><div><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><strong>Drop to read folder</strong><span>Files stay on your device</span></div></div>
+  <script type="module" src="../app.js?v=prod-en-1"></script>
+</body>
+</html>

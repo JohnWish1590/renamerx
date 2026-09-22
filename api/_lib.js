@@ -81,6 +81,7 @@ export const DAILY_LIMIT = 2000;   // 单 IP 每天上限
 export const SINGLE_MAX = 500;     // 单次上报硬上限（防止一次传个天文数字）
 export const LOG_KEEP = 2000;      // 日志最多保留条数
 export const INITIAL_COUNT = 123;  // 真实历史累计（2026-09-02 核查后回填的真实值）
+export const INITIAL_USERS = 36;   // 切换自建统计前已有的 36 位历史用户
 
 // 只允许自己的前端域名调用：就算别人拿到接口地址，浏览器同源策略也会挡下。
 // 注意这挡不住 curl / 脚本直接打（那种由限流兜底），但能挡住「别人网页里嵌你的接口」。
@@ -168,7 +169,7 @@ export async function getCount() {
 export async function recordUser(ipHash) {
   const r = redis();
   await r.sadd('users', ipHash);
-  return r.scard('users');
+  return INITIAL_USERS + await r.scard('users');
 }
 
 // 累加计数 + 记使用日志；超限则原样丢弃（不累加，但把当前真值返回给前端，界面不会跳变）

@@ -59,6 +59,7 @@ h1 em { color: var(--orange); font-style: normal; }
 .banner a { color: inherit; font-weight: 700; }
 .start-card, .workspace, .how-it-works { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
 .start-card { padding: 29px 32px 25px; }
+.start-card[hidden] { display: none; }
 .step-heading { display: flex; align-items: flex-start; }
 .step-heading h2 { margin: 0; color: var(--ink); font-family: Georgia, "Songti SC", serif; font-size: 22px; font-weight: 500; letter-spacing: -.045em; }
 .step-heading p:not(.section-overline) { margin: 4px 0 0; color: var(--muted); font-size: 12px; }

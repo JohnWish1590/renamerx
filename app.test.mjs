@@ -232,7 +232,7 @@ await test('拖入含子文件夹的目录 → 弹提醒，确认后回到主页
   await sleep(60);
   assert.strictEqual(elements['subModal'].hidden, true, '确认后弹窗应关闭');
   assert.strictEqual(elements['dropzone'].hidden, false, '确认后应回到主页（拖放区可见）');
-  assert.strictEqual(elements['count'].textContent, '未加载文件', '确认后不应加载任何文件');
+  assert.strictEqual(elements['count'].textContent, '尚未选择文件夹', '确认后不应加载任何文件');
 });
 
 console.log(`\n通过 ${passed} 项测试` + (process.exitCode ? '（存在失败）' : '，全部通过 ✅'));

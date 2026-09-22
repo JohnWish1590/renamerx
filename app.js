@@ -60,9 +60,9 @@ async function loadFromHandle(handle, recursive) {
   await collect(handle, [], recursive);
   resetTemplate();
   const warn = state.files.length > LARGE_FOLDER
-    ? `（⚠ 该文件夹包含 ${state.files.length} 个文件，数量过大，建议分批处理或只处理子文件夹）`
+    ? `（⚠ 文件较多，建议分批处理，或只处理需要的子文件夹）`
     : '';
-  setStatus(`已加载 ${state.files.length} 个文件。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
+  setStatus(`已读取 ${state.files.length} 个文件。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
   render();
 }
 
@@ -106,9 +106,9 @@ function noticeSubfolders(folderName) {
     const s = document.createElement('strong');
     s.textContent = folderName;
     msg.appendChild(s);
-    msg.appendChild(document.createTextNode('」包含子文件夹。'));
+    msg.appendChild(document.createTextNode('」里包含子文件夹。'));
     els.subModalHint.textContent =
-      '本工具按文件夹逐层处理文件。如需处理子文件夹里的文件，请勾选「包含子文件夹」后重新选择。';
+      '当前默认只处理这一层。要连同子文件夹一起处理，请勾选「包含子文件夹」后重新选择。';
     els.subModal.hidden = false;
     const close = () => {
       els.subModal.hidden = true;
@@ -149,7 +149,7 @@ function resetTemplate() {
 
 function updateTemplateNote() {
   els.templateNote.textContent = state.templateOriginal
-    ? `模板来源（列表中排第一的文件）：「${state.templateOriginal}」`
+    ? `模板取自第一个文件：「${state.templateOriginal}」`
     : '';
 }
 
@@ -179,8 +179,8 @@ function render() {
 
   // 计数文案：已加载 N 个，勾选 M 个待重命名
   els.count.textContent = sorted.length
-    ? `已加载 ${sorted.length} 个文件，已勾选 ${selected.length} 个待重命名`
-    : '未加载文件';
+    ? `已读取 ${sorted.length} 个文件，已选中 ${selected.length} 个`
+    : '尚未选择文件夹';
 
   // 模板来源跟随「第一个勾选的文件」；未手动编辑时让模板跟着它走
   const firstSel = sorted.find(f => f.selected);
@@ -252,22 +252,22 @@ function render() {
   }
   if (sorted.length > MAX_PREVIEW) {
     html += `<tr><td class="col-check"></td><td class="col-idx">…</td><td colspan="2" class="warn-cell">` +
-      `还有 ${sorted.length - MAX_PREVIEW} 个文件未在预览中显示（共 ${sorted.length} 个），应用时只处理勾选的文件。` +
+      `还有 ${sorted.length - MAX_PREVIEW} 个文件未显示（共 ${sorted.length} 个），改名时只处理已选中的文件。` +
       `</td></tr>`;
   }
   els.previewBody.innerHTML = html;
 
   if (hasWarn) {
     const n = res.filter(r => r.warnings.length).length;
-    setStatus(`有 ${n} 个文件存在警告（冲突或非法字符），请修正模板后再应用。`, 'err');
+    setStatus(`有 ${n} 个文件无法应用，请检查重名或非法字符。`, 'err');
   } else if (!selected.length) {
-    setStatus('没有任何文件被勾选。请在预览表最左列勾选需要改名的文件。', 'err');
+    setStatus('没有选中的文件。请勾选要改名的文件。', 'err');
   } else if (sorted.length > MAX_PREVIEW) {
-    setStatus(`预览已更新（仅显示前 ${MAX_PREVIEW} 个，共 ${sorted.length} 个，已勾选 ${selected.length} 个）。确认无误后点击「应用重命名」。`, 'ok');
+    setStatus(`显示前 ${MAX_PREVIEW} 个文件，共 ${sorted.length} 个；已选中 ${selected.length} 个。`, 'ok');
   } else if (state.mode === 'compat') {
-    setStatus('兼容模式仅可预览，真实改名请用 Chrome / Edge 在线打开本页。', 'ok');
+    setStatus('兼容模式只能预览，不能直接改名；请使用 Chrome 或 Edge 打开在线页面。', 'ok');
   } else {
-    setStatus(`预览已更新，已勾选 ${selected.length} 个文件。确认无误后点击「应用重命名」。`, 'ok');
+    setStatus(`预览已更新，已选中 ${selected.length} 个文件。`, 'ok');
   }
 }
 
@@ -456,16 +456,16 @@ async function applyRenames() {
   // 包裹全局 try-catch：任何意外异常都逼到状态栏，避免「点了没反应又无提示」
   try {
     if (state.mode === 'compat' || !state.rootHandle) {
-      setStatus('当前无法真实改名。兼容模式或 file:// 打开时，请使用「导出重命名脚本」手动执行。', 'err');
-      showToast('⚠️ 当前无法真实改名（兼容模式 / file://）', 'err');
+      setStatus('当前无法直接改名。请用 Chrome 或 Edge 在线打开本页。', 'err');
+      showToast('⚠️ 当前只能预览，不能直接改名', 'err');
       return;
     }
-    setStatus(`正在应用重命名…（已勾选 ${getSorted().filter(f => f.selected).length} 个文件）`, 'ok');
+    setStatus(`正在改名……（已选中 ${getSorted().filter(f => f.selected).length} 个文件）`, 'ok');
     const sorted = getSorted();
     const selected = sorted.filter(f => f.selected);
     if (!selected.length) {
-      setStatus('没有勾选任何要重命名的文件。请在预览表最左列勾选需要改名的文件。', 'err');
-      showToast('⚠️ 没有勾选要重命名的文件', 'err');
+      setStatus('没有选中的文件。请勾选要改名的文件。', 'err');
+      showToast('⚠️ 请先勾选要改名的文件', 'err');
       return;
     }
     const res = computeRenames({
@@ -481,20 +481,20 @@ async function applyRenames() {
     );
     for (const r of res) {
       if (unselKeys.has(r.relativeKey)) {
-        setStatus(`目标名「${r.renamed}」与未勾选的文件「${r.original}」重名，已阻止重命名。`, 'err');
-        showToast('⚠️ 存在与未勾选文件重名的冲突', 'err');
+        setStatus(`新名称「${r.renamed}」已经被未选中的文件占用，已停止改名。`, 'err');
+        showToast('⚠️ 新名称与未选中的文件重复', 'err');
         return;
       }
     }
 
     if (res.some(r => r.warnings.length)) {
-      setStatus('存在冲突或非法字符，已阻止重命名。', 'err');
-      showToast('⚠️ 存在冲突或非法字符，已阻止重命名', 'err');
+      setStatus('存在重名或非法字符，已停止改名。', 'err');
+      showToast('⚠️ 请先处理重名或非法字符', 'err');
       return;
     }
     if (!('move' in (selected[0]?.handle || {}))) {
-      setStatus('当前浏览器不支持真实重命名（需要 Chrome / Edge 新版）。', 'err');
-      showToast('⚠️ 当前浏览器不支持真实重命名', 'err');
+      setStatus('当前浏览器不支持直接改名，请使用最新版 Chrome 或 Edge。', 'err');
+      showToast('⚠️ 当前浏览器不支持直接改名', 'err');
       return;
     }
 
@@ -511,23 +511,23 @@ async function applyRenames() {
         ok++;
       } catch (e) {
         const msg = e && e.message ? e.message : e;
-        setStatus(`重命名失败：${msg}`, 'err');
-        showToast(`❌ 重命名失败：${msg}`, 'err');
+        setStatus(`改名失败：${msg}`, 'err');
+        showToast(`❌ 改名失败：${msg}`, 'err');
         break;
       }
     }
     if (ok > 0) {
-      setStatus(`成功重命名 ${ok} 个文件。`, 'ok');
-      showToast(`✅ 成功重命名 ${ok} 个文件`, 'ok');
+      setStatus(`已成功改名 ${ok} 个文件。`, 'ok');
+      showToast(`✅ 已成功改名 ${ok} 个文件`, 'ok');
       addRenamedCount(ok);
       notifyRenamed(ok);
     } else {
-      setStatus('没有任何文件被重命名（可能目标名与原名相同，或 move 未生效）。', 'err');
-      showToast('⚠️ 没有文件被重命名', 'err');
+      setStatus('没有文件被改名，可能新旧名称相同。', 'err');
+      showToast('⚠️ 没有文件被改名', 'err');
     }
     render();
   } catch (e) {
-    setStatus(`应用重命名时发生异常：${e && e.message ? e.message : e}`, 'err');
+    setStatus(`改名时发生错误：${e && e.message ? e.message : e}`, 'err');
   }
 }
 
@@ -560,12 +560,12 @@ async function loadFromCompat(input) {
       selected: true,
     });
   }
-  state.compatRoot = rootName || '选中的文件夹';
+  state.compatRoot = rootName || '当前文件夹';
   resetTemplate();
   const warn = state.files.length > LARGE_FOLDER
-    ? `（⚠ 该文件夹包含 ${state.files.length} 个文件，数量过大，建议分批处理）`
+    ? `（⚠ 文件较多，建议分批处理）`
     : '';
-  setStatus(`兼容模式已加载 ${state.files.length} 个文件（来自「${state.compatRoot}」）。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
+  setStatus(`已读取 ${state.files.length} 个文件（来自「${state.compatRoot}」）。${warn}`, state.files.length > LARGE_FOLDER ? 'err' : 'ok');
   render();
 }
 
@@ -585,9 +585,8 @@ function setDropOverlay(visible) {
 function maybeShowBanner() {
   if (location.protocol === 'file:') {
     showBanner(
-      '⚠️ <strong>你正在用「直接双击 HTML」的方式打开</strong>，浏览器出于安全限制：' +
-      '①「选择文件夹」按钮和拖拽<strong>无法读取</strong>本机文件；②也无法<strong>真实改名</strong>。' +
-      '请访问在线版 <a href="' + PAGES_URL + '" target="_blank" rel="noopener">RenamerX 网页版</a> 用 Chrome / Edge 直接改名。'
+      '⚠️ <strong>当前是直接打开 HTML 文件</strong>，浏览器会限制读取本机文件。' +
+      '你可以使用「兼容模式」预览，或打开<a href="' + PAGES_URL + '" target="_blank" rel="noopener">在线版</a>直接改名。'
     );
   }
 }
@@ -619,7 +618,7 @@ function hasFilePayload(e) {
 async function pickFolder() {
   if (!window.isSecureContext || !window.showDirectoryPicker) {
     showBanner(); // 确保在 file:// 下给出提示
-    setStatus('当前为 file:// 模式，「选择文件夹」不可用。请点「兼容模式选择」，或访问在线网页版。', 'err');
+    setStatus('当前不能直接读取文件夹。请使用「兼容模式」，或打开在线版。', 'err');
     return;
   }
   try {
@@ -647,9 +646,9 @@ function resetTool() {
   if (els.startCard) els.startCard.hidden = false;
   if (els.pageIntro) els.pageIntro.hidden = false;
   els.reselectBtn.hidden = true;
-  els.count.textContent = '未加载文件';
+  els.count.textContent = '尚未选择文件夹';
   hideBanner();
-  setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');
+  setStatus('请选择文件夹，或直接把文件夹拖到页面上。');
 }
 
 els.pickBtn.addEventListener('click', pickFolder);
@@ -725,7 +724,7 @@ async function handleDroppedItem(item) {
   if (!item) return;
   if (!window.isSecureContext || !item.getAsFileSystemHandle) {
     showBanner();
-    setStatus('当前为 file:// 模式，拖拽无法读取文件夹。请点「兼容模式选择」。', 'err');
+    setStatus('当前不能读取拖入的文件夹。请使用「兼容模式」。', 'err');
     return;
   }
   let handle = null;
@@ -733,7 +732,7 @@ async function handleDroppedItem(item) {
   if (handle && handle.kind === 'directory') {
     await loadFolder(handle);
   } else {
-    setStatus('请拖入一个文件夹。', 'err');
+    setStatus('请拖入文件夹，不要拖入单个文件。', 'err');
   }
 }
 
@@ -754,4 +753,4 @@ els.dirInput.addEventListener('change', () => loadFromCompat(els.dirInput));
 maybeShowBanner();
 loadRenamedCount();
 fmtBusuanzi();
-setStatus('选择或拖入一个文件夹开始；若双击打开 HTML，请使用「兼容模式选择」。');
+setStatus('请选择文件夹，或直接把文件夹拖到页面上。');

@@ -163,6 +163,8 @@ await test('网页任意位置接收文件夹拖放', async () => {
   for (const fn of (win._l.drop || [])) await fn(event);
   await sleep(50);
   assert.equal(elements['dropOverlay'].hidden, true, '放下后应关闭整页接收提示');
+  assert.equal(elements['pageIntro'].hidden, true, '加载后介绍区应让出原位给工作区');
+  assert.equal(elements['startCard'].hidden, true, '加载后拖放入口应让出原位给工作区');
   assert.ok(elements['previewBody'].innerHTML.includes('01.dat'), '网页任意位置放下后应加载文件');
 });
 

@@ -11,6 +11,7 @@ const MAX_DEPTH = 10;          // 递归收集最大深度，防止符号链接�
 const els = {
   pickBtn: document.getElementById('pickBtn'),
   startCard: document.getElementById('startCard'),
+  pageIntro: document.getElementById('pageIntro'),
   recursive: document.getElementById('recursive'),
   sort: document.getElementById('sort'),
   order: document.getElementById('order'),
@@ -195,6 +196,7 @@ function render() {
   // 文件加载后自动隐藏 dropzone，进入编辑态；显示「重新选择」按钮
   els.dropzone.hidden = sorted.length > 0;
   if (els.startCard) els.startCard.hidden = sorted.length > 0;
+  if (els.pageIntro) els.pageIntro.hidden = sorted.length > 0;
   els.reselectBtn.hidden = sorted.length === 0;
 
   if (!sorted.length) {
@@ -587,6 +589,7 @@ function resetTool() {
   els.applyBtn.hidden = false;
   els.dropzone.hidden = false;
   if (els.startCard) els.startCard.hidden = false;
+  if (els.pageIntro) els.pageIntro.hidden = false;
   els.reselectBtn.hidden = true;
   els.count.textContent = '未加载文件';
   hideBanner();

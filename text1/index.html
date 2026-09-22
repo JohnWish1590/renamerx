@@ -4,15 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RenamerX · 批量重命名</title>
-  <link rel="stylesheet" href="styles.css?v=text1-4" />
+  <link rel="stylesheet" href="styles.css?v=text1-5" />
 </head>
 <body ondragover="event.preventDefault()" ondrop="event.preventDefault()">
   <header class="site-header">
     <a class="brand" href="../" aria-label="返回 RenamerX 原页面"><span class="brand-mark">R</span><span>RenamerX</span><small>测试页</small></a>
     <nav aria-label="页面链接">
-      <a href="#how">使用说明</a>
       <a href="../">原版</a>
       <a class="nav-github" href="https://github.com/JohnWish1590/renamerx" target="_blank" rel="noopener">GitHub <span>↗</span></a>
+      <div class="theme-switcher" role="group" aria-label="主题">
+        <button id="themeLight" type="button" data-theme-choice="light" aria-label="使用浅色主题">浅</button>
+        <button id="themeDark" type="button" data-theme-choice="dark" aria-label="使用深色主题">深</button>
+        <button id="themeSystem" type="button" data-theme-choice="system" aria-label="跟随系统主题">系统</button>
+      </div>
     </nav>
   </header>
 
@@ -131,10 +135,6 @@
       </section>
     </section>
 
-    <section id="how" class="how-it-works" aria-labelledby="how-title">
-      <p class="section-overline">操作</p>
-      <h2 id="how-title">拖入文件夹 → 改模板 → 确认</h2>
-    </section>
   </main>
 
   <footer>
@@ -160,6 +160,6 @@
     </div>
   </div>
 
-  <script type="module" src="../app.js?v=text1-5"></script>
+  <script type="module" src="../app.js?v=text1-6"></script>
 </body>
 </html>

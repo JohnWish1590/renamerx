@@ -366,3 +366,84 @@ footer strong { color: #287fe0; }
 @media (max-width: 760px) {
   .site-header, main, footer { width: min(100% - 32px, 1100px); }
 }
+
+/* 主题切换与紧凑布局 */
+.site-header nav { gap: 12px; }
+.theme-switcher { display: inline-flex; align-items: center; padding: 3px; border: 1px solid #d8e2eb; border-radius: 9px; background: #fff; }
+.theme-switcher button { min-width: 30px; height: 25px; padding: 0 6px; border: 0; border-radius: 6px; color: #718096; background: transparent; font-size: 11px; }
+.theme-switcher button:hover { color: #1d65b5; background: #f0f6fc; }
+.theme-switcher button.active { color: #fff; background: #287fe0; }
+.intro { min-height: 104px; padding-top: 15px; padding-bottom: 14px; }
+.start-card { padding-top: 18px; padding-bottom: 14px; }
+.choose-area { margin-top: 12px; margin-bottom: 12px; }
+.workspace-topline { min-height: 46px; }
+.rename-step, .preview-step { padding-top: 15px; padding-bottom: 15px; }
+.table-wrap { margin-top: 12px; }
+th, td { padding-top: 8px; padding-bottom: 8px; }
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e7f0ff;
+  --muted: #8ea2bb;
+  --line: #263a52;
+  --paper: #09111d;
+  --panel: #101b2b;
+  --orange: #36b6ff;
+  --orange-dark: #1596df;
+  --orange-soft: #12324c;
+  --green: #42d6a4;
+  --danger: #ff7186;
+}
+html[data-theme="dark"] body { background: #09111d; color: #e7f0ff; }
+html[data-theme="dark"] .site-header { border-bottom-color: #1d3047; }
+html[data-theme="dark"] .brand, html[data-theme="dark"] h1, html[data-theme="dark"] .step-heading h2, html[data-theme="dark"] .modal-card h2 { color: #edf5ff; }
+html[data-theme="dark"] .brand-mark { color: #07111e; background: #4fd0ff; }
+html[data-theme="dark"] .brand small { color: #8fdcff; background: #123451; }
+html[data-theme="dark"] .site-header nav a { color: #839ab5; }
+html[data-theme="dark"] .site-header nav a:hover { color: #d7efff; }
+html[data-theme="dark"] .site-header .nav-github { border-color: #2a4562; color: #d7eaff; background: #101d2d; }
+html[data-theme="dark"] .site-header nav .nav-github span, html[data-theme="dark"] .eyebrow, html[data-theme="dark"] .section-overline, html[data-theme="dark"] h1 em { color: #4fd0ff; }
+html[data-theme="dark"] .eyebrow span { background: #4fd0ff; box-shadow: 0 0 0 5px rgba(54,182,255,.13); }
+html[data-theme="dark"] .intro-copy > p:not(.eyebrow), html[data-theme="dark"] .step-heading p:not(.section-overline), html[data-theme="dark"] .file-count, html[data-theme="dark"] .field-label, html[data-theme="dark"] .template-note, html[data-theme="dark"] .quick-actions > span, html[data-theme="dark"] .status { color: #8ea2bb; }
+html[data-theme="dark"] .start-card, html[data-theme="dark"] .workspace { border-color: #263c55; background: #101b2b; box-shadow: 0 18px 45px rgba(0,0,0,.16); }
+html[data-theme="dark"] .primary-action, html[data-theme="dark"] .apply-button { border-color: #36b6ff; color: #061321; background: #36b6ff; box-shadow: 0 0 22px rgba(54,182,255,.18); }
+html[data-theme="dark"] .primary-action:hover, html[data-theme="dark"] .apply-button:hover { border-color: #6bd6ff; background: #6bd6ff; }
+html[data-theme="dark"] .choose-or { color: #7188a2; }
+html[data-theme="dark"] .dropzone { border-color: #365674; color: #8fa5bd; background: #0d1827; }
+html[data-theme="dark"] .dropzone strong { color: #d4e8fb; }
+html[data-theme="dark"] .dropzone small { color: #7890aa; }
+html[data-theme="dark"] .drop-icon { border-color: #365674; color: #4fd0ff; }
+html[data-theme="dark"] .dropzone.drag { border-color: #4fd0ff; background: #12324c; }
+html[data-theme="dark"] .advanced-options, html[data-theme="dark"] .rename-step { border-color: #20344b; }
+html[data-theme="dark"] .advanced-content select, html[data-theme="dark"] .text-button, html[data-theme="dark"] .secondary-button { border-color: #2b425c; color: #c9d9eb; background: #111f31; }
+html[data-theme="dark"] .text-button:hover, html[data-theme="dark"] .secondary-button:hover { border-color: #3e7093; background: #172b42; }
+html[data-theme="dark"] .workspace-topline { border-color: #263a52; background: #0d1827; }
+html[data-theme="dark"] #templateInput { border-color: #365674; color: #e7f0ff; background: #0b1625; }
+html[data-theme="dark"] #templateInput:focus { outline-color: rgba(54,182,255,.2); border-color: #4fd0ff; }
+html[data-theme="dark"] .quick-actions button { border-color: #2b425c; color: #9db2c9; background: #101e30; }
+html[data-theme="dark"] .quick-actions button:hover { border-color: #4a95bd; color: #69d6ff; background: #12324c; }
+html[data-theme="dark"] .apply-button:disabled { border-color: #2a3b50; color: #6f8299; background: #1a2839; box-shadow: none; }
+html[data-theme="dark"] .table-wrap { border-color: #263a52; }
+html[data-theme="dark"] th, html[data-theme="dark"] td { border-color: #20344b; }
+html[data-theme="dark"] th { color: #8299b2; background: #0d1827; }
+html[data-theme="dark"] .col-idx { color: #7188a2; }
+html[data-theme="dark"] .col-old { color: #9aacbf; }
+html[data-theme="dark"] .col-new { color: #cdeaff; }
+html[data-theme="dark"] .warn-cell { color: #f5c96d; background: #2a2114; }
+html[data-theme="dark"] .status.ok { color: #63e1b6; }
+html[data-theme="dark"] .status.err { color: #ff899c; }
+html[data-theme="dark"] footer { color: #687f99; }
+html[data-theme="dark"] footer strong { color: #4fd0ff; }
+html[data-theme="dark"] .modal { background: rgba(2,8,16,.7); }
+html[data-theme="dark"] .modal-card { border-color: #2a415b; background: #101c2d; box-shadow: 0 24px 70px rgba(0,0,0,.38); }
+html[data-theme="dark"] .modal-kicker { color: #4fd0ff; }
+html[data-theme="dark"] .modal-hint { color: #8ea2bb; }
+html[data-theme="dark"] .drop-overlay { border-color: #4fd0ff; background: rgba(8,24,40,.9); }
+html[data-theme="dark"] .drop-overlay-card { border-color: #2f7195; color: #72d7ff; background: #101e30; }
+html[data-theme="dark"] .drop-overlay-card small { color: #8199b2; }
+html[data-theme="dark"] .diff-added { color: #071522; background: #55d7ff; }
+html[data-theme="dark"] .diff-removed { color: #ffd7dd; background: #6a2638; }
+html[data-theme="dark"] .theme-switcher { border-color: #2a415b; background: #101e30; }
+html[data-theme="dark"] .theme-switcher button { color: #839ab5; }
+html[data-theme="dark"] .theme-switcher button:hover { color: #d7efff; background: #172b42; }
+html[data-theme="dark"] .theme-switcher button.active { color: #071522; background: #4fd0ff; }

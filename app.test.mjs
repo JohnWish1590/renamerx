@@ -36,6 +36,7 @@ const document = {
   removeEventListener() {},
   _fire(t, e = {}) { (this._l[t] || []).forEach(f => f(e)); },
   body: { appendChild() {} },
+  documentElement: { dataset: {} },
 };
 const win = {
   _l: {}, isSecureContext: true, showDirectoryPicker: null,
@@ -145,6 +146,16 @@ await test('File System Access：真实改名', async () => {
   await pickAndRename(3, '系列.<n>.dat');
   const afterHtml = elements['previewBody'].innerHTML;
   assert.ok(afterHtml.includes('系列.1.dat') && afterHtml.includes('系列.3.dat'), '应用后预览应为新名');
+});
+
+await test('主题切换：浅色 / 深色 / 跟随系统', async () => {
+  elements['themeDark']._fire('click');
+  assert.equal(document.documentElement.dataset.theme, 'dark');
+  assert.equal(document.documentElement.dataset.themeMode, 'dark');
+  elements['themeLight']._fire('click');
+  assert.equal(document.documentElement.dataset.theme, 'light');
+  elements['themeSystem']._fire('click');
+  assert.equal(document.documentElement.dataset.themeMode, 'system');
 });
 
 await test('网页任意位置接收文件夹拖放', async () => {

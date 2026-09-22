@@ -35,6 +35,9 @@ const els = {
   subModalHint: document.getElementById('subModalHint'),
   subConfirmBtn: document.getElementById('subConfirmBtn'),
   dropOverlay: document.getElementById('dropOverlay'),
+  themeLight: document.getElementById('themeLight'),
+  themeDark: document.getElementById('themeDark'),
+  themeSystem: document.getElementById('themeSystem'),
 };
 
 const state = {
@@ -333,6 +336,46 @@ function diffFileName(oldName, newName) {
 function setStatus(msg, kind) {
   els.status.textContent = msg;
   els.status.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+const THEME_KEY = 'renamerx-theme';
+function systemPrefersDark() {
+  return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+function applyTheme(mode, persist = true) {
+  const resolved = mode === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : mode;
+  const root = document.documentElement;
+  if (root) {
+    root.dataset.theme = resolved;
+    root.dataset.themeMode = mode;
+  }
+  for (const [name, button] of [['light', els.themeLight], ['dark', els.themeDark], ['system', els.themeSystem]]) {
+    if (button) button.className = name === mode ? 'active' : '';
+  }
+  if (persist && typeof localStorage !== 'undefined') {
+    try { localStorage.setItem(THEME_KEY, mode); } catch (_) {}
+  }
+}
+
+function initTheme() {
+  let mode = 'system';
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'light' || saved === 'dark' || saved === 'system') mode = saved;
+    } catch (_) {}
+  }
+  applyTheme(mode, false);
+  const media = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  if (media) {
+    const update = () => {
+      const root = document.documentElement;
+      if (root && root.dataset.themeMode === 'system') applyTheme('system', false);
+    };
+    if (media.addEventListener) media.addEventListener('change', update);
+    else if (media.addListener) media.addListener(update);
+  }
 }
 
 // 轻量提示气泡：应用重命名后弹出，2.6s 后自动消失（clear 的反馈，避免「点了没反应」）
@@ -749,6 +792,11 @@ els.pickCompatBtn.addEventListener('click', () => {
   els.dirInput.click();
 });
 els.dirInput.addEventListener('change', () => loadFromCompat(els.dirInput));
+
+for (const [mode, button] of [['light', els.themeLight], ['dark', els.themeDark], ['system', els.themeSystem]]) {
+  if (button) button.addEventListener('click', () => applyTheme(mode));
+}
+initTheme();
 
 maybeShowBanner();
 loadRenamedCount();

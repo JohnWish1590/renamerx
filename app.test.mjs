@@ -88,8 +88,10 @@ function test(name, fn) {
 await import('./app.js');
 
 // 辅助：搭一个支持 File System Access 的 fake 文件夹（n 个 01.dat…）
-function fakeDir(n) {
-  const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {} });
+function fakeDir(n, failAt = 0) {
+  const mkFile = (name) => ({ kind: 'file', name, getFile: async () => ({ lastModified: 0, size: 0 }), move: async () => {
+    if (Number.parseInt(name, 10) === failAt) throw new Error('文件正在使用');
+  } });
   const entries = [];
   for (let i = 1; i <= n; i++) entries.push(mkFile(String(i).padStart(2, '0') + '.dat'));
   return {
@@ -99,9 +101,9 @@ function fakeDir(n) {
   };
 }
 // 走完整流程：选文件夹 → 填模板 → 点应用改名
-async function pickAndRename(n, template) {
+async function pickAndRename(n, template, failAt = 0) {
   win.isSecureContext = true;
-  win.showDirectoryPicker = async () => fakeDir(n);
+  win.showDirectoryPicker = async () => fakeDir(n, failAt);
   elements['pickBtn']._fire('click');
   await sleep(50);
   elements['templateInput'].value = template;
@@ -146,6 +148,9 @@ await test('File System Access：真实改名', async () => {
   await pickAndRename(3, '系列.<n>.dat');
   const afterHtml = elements['previewBody'].innerHTML;
   assert.ok(afterHtml.includes('系列.1.dat') && afterHtml.includes('系列.3.dat'), '应用后预览应为新名');
+  assert.equal(elements['status'].textContent, '重命名完成，已修改 3 个文件。');
+  assert.equal(elements['toast'].hidden, false);
+  assert.match(elements['toast'].textContent, /重命名完成，已修改 3 个文件/);
 });
 
 await test('主题切换：浅色 / 深色 / 跟随系统', async () => {
@@ -244,6 +249,24 @@ await test('拖入含子文件夹的目录 → 弹提醒，确认后回到主页
   assert.strictEqual(elements['subModal'].hidden, true, '确认后弹窗应关闭');
   assert.strictEqual(elements['dropzone'].hidden, false, '确认后应回到主页（拖放区可见）');
   assert.strictEqual(elements['count'].textContent, '尚未选择文件夹', '确认后不应加载任何文件');
+});
+
+await test('部分失败：保留失败原因和成功数量，不提示全部完成', async () => {
+  const postsBefore = countServer.posts.length;
+  await pickAndRename(3, '部分.<n>.dat', 2);
+  assert.equal(elements['status'].textContent, '已修改 1 个文件，剩余 2 个未完成。改名已停止：文件正在使用');
+  assert.match(elements['status'].className, /err/);
+  assert.equal(elements['toast'].textContent, elements['status'].textContent);
+  assert.deepEqual(countServer.posts.slice(postsBefore), [1]);
+});
+
+await test('全部失败：保留具体原因，不误报成功或名称相同', async () => {
+  const postsBefore = countServer.posts.length;
+  await pickAndRename(3, '失败.<n>.dat', 1);
+  assert.equal(elements['status'].textContent, '重命名失败，未修改任何文件：文件正在使用');
+  assert.match(elements['toast'].className, /err/);
+  assert.equal(elements['toast'].textContent, elements['status'].textContent);
+  assert.equal(countServer.posts.length, postsBefore);
 });
 
 console.log(`\n通过 ${passed} 项测试` + (process.exitCode ? '（存在失败）' : '，全部通过 ✅'));

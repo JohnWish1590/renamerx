@@ -379,9 +379,9 @@ function initTheme() {
   }
 }
 
-// 轻量提示气泡：应用重命名后弹出，2.6s 后自动消失（clear 的反馈，避免「点了没反应」）
+// 轻量提示气泡；改名结果可延长展示，状态栏保留结果。
 let toastTimer;
-function showToast(msg, type = 'ok') {
+function showToast(msg, type = 'ok', duration = 2600) {
   const el = els.toast;
   if (!el) return;
   el.textContent = msg;
@@ -391,7 +391,7 @@ function showToast(msg, type = 'ok') {
   toastTimer = setTimeout(() => {
     el.className = 'toast ' + type;
     el.hidden = true;
-  }, 2600);
+  }, duration);
 }
 
 // 改名完成后通知父页面（用于发布站的人气计数）。在 iframe 内才发送，直接打开时不打扰。
@@ -545,6 +545,7 @@ async function applyRenames() {
     }
 
     let ok = 0;
+    let failure = null;
     for (let i = 0; i < res.length; i++) {
       const r = res[i];
       const f = selected[i];
@@ -556,22 +557,29 @@ async function applyRenames() {
         f.dirParts = parent;
         ok++;
       } catch (e) {
-        const msg = e && e.message ? e.message : e;
-        setStatus(`改名失败：${msg}`, 'err');
-        showToast(`❌ 改名失败：${msg}`, 'err');
+        failure = String(e && e.message ? e.message : e);
         break;
       }
     }
+    // 先刷新文件列表，再显示最终结果，避免被 render 的预览状态覆盖。
+    render();
     if (ok > 0) {
-      setStatus(`已成功改名 ${ok} 个文件。`, 'ok');
-      showToast(`✅ 已成功改名 ${ok} 个文件`, 'ok');
       addRenamedCount(ok);
       notifyRenamed(ok);
+    }
+    if (failure !== null) {
+      const message = ok > 0
+        ? `已修改 ${ok} 个文件，剩余 ${res.length - ok} 个未完成。改名已停止：${failure}`
+        : `重命名失败，未修改任何文件：${failure}`;
+      setStatus(message, 'err');
+      showToast(message, 'err', 5000);
+    } else if (ok > 0) {
+      setStatus(`重命名完成，已修改 ${ok} 个文件。`, 'ok');
+      showToast(`✓ 重命名完成，已修改 ${ok} 个文件`, 'ok', 5000);
     } else {
       setStatus('没有文件被改名，可能新旧名称相同。', 'err');
       showToast('⚠️ 没有文件被改名', 'err');
     }
-    render();
   } catch (e) {
     setStatus(`改名时发生错误：${e && e.message ? e.message : e}`, 'err');
   }
